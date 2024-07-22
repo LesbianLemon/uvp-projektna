@@ -12,6 +12,12 @@ def main():
 	page.save_html("data/page1.html", force=False) # force=False do not rewrite the file if it already exists
 	page.init_parser()
 
+	table = page.find("table", { "id": "maintable" })
+
+	page_count = table.caption
+	print(page_count)
+	# re.match(r".*?\d+.*?(\d+)") 
+
 
 if __name__ == "__main__":
     main()
