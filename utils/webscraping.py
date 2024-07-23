@@ -1,36 +1,47 @@
 import requests as req
 import bs4 as bs
 
-import os.path
+import os
+
+import concurrent.futures as cf
 
 
-class WebPage(bs.BeautifulSoup):
-	# variable typing
+class PageScraper:
 	url: str
+	headers: dict[str, str]
 	html_path: str | None
-	initialised: bool
 
-	def __init__(self, url: str, html_path: str | None=None) -> None:
+	initialised: bool
+	_parser: bs.BeautifulSoup | None
+
+	def __init__(self, url: str, headers: dict[str, str]={}, html_path: str | None=None) -> None:
 		"""
-		WebPage class constructor.
+		PageScraper constructor.
 
 		Parameters
 		----------
 		url : str
 			| the website URL.
-
+		headers : dict[str, str], default=`{}`
+			| headers to be supplied with the http request
 		html : str, optional
 			| path to webpage HTML file.
 		"""
 
 		self.url = url
+		self.headers = headers
 		self.html_path = html_path
+
 		self.initialised = False
+		self._parser = None
 
 
-	# useful for printing
-	def __str__(self):
-		return f"WebPage(url={self.url}, html_path={self.html_path}, initialised={self.initialised})"
+	def __str__(self) -> str:
+		return f"<PageScraper url={self.url}>"
+
+
+	def __repr__(self) -> str:
+		return f"PageScraper(url={self.url}, headers={self.headers}, html_path={self.html_path}, initialised={self.initialised})"
 
 	
 	def get_html(self) -> str:
@@ -55,10 +66,10 @@ class WebPage(bs.BeautifulSoup):
 		
 		# adding headers requires Session
 		session = req.Session()
-		return req.get(self.url, headers=headers).text
+		return req.get(self.url, headers=self.headers).text
 
 
-	def save_html(self, path: str, force: bool=False) -> bool:
+	def save_html(self, path: str, force: bool=False) -> int:
 		"""
 		Saves HTML of given website URL to given path and adds said path to `html_path` class variable.
 
@@ -75,31 +86,30 @@ class WebPage(bs.BeautifulSoup):
 			| `0` if writing failed, `1` if the file is already present and force=False, `2` if writing was successful
 		"""
 
-		mode: str = "x" if not force else "w"
+		if os.path.exists(path) and not force:
+			return 1
 
-		# if mode is "x" and file already exists a FileExistsError is thrown
 		try:
-			with open(path, mode) as file:
+			with open(path, "w") as file:
 				file.write(self.get_html())
 				self.html_path = path
 				return 2
 				
-		except Exception as e:
-			if type(e) is FileExistsError:
-				self.html_path = path
-				return 1
-			
-			print(e)
+		except Exception as err:
+			if os.path.exists(path):
+				os.remove(path)
+
+			print(f"{self} could not successfuly write to {path}: {err}")
 			return 0
 
 	
-	def init_parser(self, parser: str="html.parser") -> None:
+	def start_parser(self, parser_type: str="html.parser") -> None:
 		"""
 		Starts the parser if html_path variable is set.
 
 		Parameters
 		----------
-		parser : str, default=`"html.parser"`
+		parser_type : str, default=`"html.parser"`
 			| a valid `BeautifulSoup` parser for the saved HTML file
 		"""
 
@@ -107,5 +117,49 @@ class WebPage(bs.BeautifulSoup):
 		assert self.html_path, "`html_path` class variable is not set, make sure to run `class.save_html(path)`"
 
 		with open(self.html_path, "r") as html_doc:
-			super().__init__(html_doc.read(), parser)
+			self._parser = bs.BeautifulSoup(html_doc.read(), parser_type)
 			self.initialised = True
+
+
+	def stop_parser(self) -> None:
+		"""
+		Stops the parser if it is initialised.
+		"""
+
+		self._parser = None
+	
+
+
+class MultiScraper:
+	pages: dict[str, str]
+	headers: dict[str, str]
+
+	scrapers: dict[str, PageScraper]
+
+	def __init__(self, pages: dict[str, str], headers: dict[str, str]={}) -> None:
+		self.pages = pages
+		self.headers = headers
+
+		self.scrapers = {}
+
+
+	def init_scrapers(self, save_dir: str, threads: int) -> dict[str, int]:
+		with cf.ThreadPoolExecutor(max_workers=threads) as executor:
+			futures_to_name: dict[cf.Future, str] = {}
+
+			name: str
+			url: str
+			for name, url in self.pages.items():
+				page_scraper: PageScraper = PageScraper(url, headers=self.headers)
+				self.scrapers[name] = page_scraper
+
+				path: str = save_dir + f"{name}.html"
+				futures_to_name.update({executor.submit(page_scraper.save_html, path): name})
+
+			return_types: dict[str, int] = {}
+
+			future: cf.Future
+			for future in cf.as_completed(futures_to_name):
+				return_types[futures_to_name[future]] = future.result()
+
+			return return_types
