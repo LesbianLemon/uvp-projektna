@@ -1,79 +1,89 @@
 import re
+import time
 import argparse # command-line arguments
-from concurrent.futures import ThreadPoolExecutor, as_completed # multithreading
 
-from utils.webscraping import WebPage # locally sourced module
+from utils.webscraping import MultiScraper, PageScraper # locally sourced module
 
 
 # command-line argument setup
-parser = argparse.ArgumentParser()
+parser: argparse.ArgumentParser = argparse.ArgumentParser()
 parser.add_argument("--threads", "-t", help="number of threads used for saving the HTML files", type=int, default=8)
-args = parser.parse_args()
+args: argparse.Namespace = parser.parse_args()
 
 
 # save time and space by making a dedicated function for save feedback
-def print_save_success(return_type: int, page_num: int, path: str) -> None:
+def print_save_success(return_type: int, name: str, data_dir: str) -> None:
+	path = data_dir + f"{name}.html"
 	match return_type:
 		case 0:
-			print(f"Page {page_num} failed to be saved to `{path}`.")
+			print(f"Page '{name}' failed to be saved to '{path}'.")
 		case 1:
-			print(f"Page {page_num} already has `{path}`, using that instead.")
+			print(f"Page '{name}' already has an html file at '{path}', using that instead.")
 		case 2:
-			print(f"Page {page_num} saved successfully to `{path}`.") 
-
-
-def get_saved_page(url: str, page_num: int) -> WebPage:
-	page: WebPage = WebPage(url + str(page_num))
-
-	path: str = f"data/page{page_num}.html"
-	return_type: int = page.save_html(path)
-
-	print_save_success(return_type, page_num, path)
-
-	return page
+			print(f"Page '{name}' saved successfully to '{path}'.") 
 
 
 def main() -> None:
-	# website URL with preset search options:
-	#
 	# sea - search string (%2A = *)
+	sea = "%2A"
 	# sfor - search for (names, text, places, classes, years)
+	sfor = "names"
 	# valids - only approved meteorites
+	valids = "yes"
 	# stype - type of search (contains, startswith, exact, soundslike)
+	stype = "contains"
 	# lrec - lines per page (20, 50, 100, 200, 500, 1000, 2000, 5000, 50000)
+	lrec = 5000
 	# map - display decimal degrees location
-	# page - page number inof search
-	url: str = "https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&valids=yes&stype=contains&lrec=5000&map=ll&page="
-	
-	# add "1", representing the first page, which should always exist
-	page1: WebPage = WebPage(url + "1")
+	map = "ll"
 
-	# save page 1 first, the rest come later
-	return_type: int = page1.save_html("data/page1.html")
+	# Example URL: https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&ants=&nwas=&falls=&valids=yes&stype=contains&lrec=50&map=ll&browse=&country=All&srt=name&categ=All&mblist=All&rect=&phot=&strewn=&snew=0&pnt=Normal%20table&dr=&page=1
+	# website URL with preset search options
+	homepage_url = "https://www.lpi.usra.edu/meteor/metbull.php"
+	url: str = homepage_url + f"?sea={sea}&sfor={sfor}&valids={valids}&stype={stype}&lrec={lrec}&map={map}"
 
-	print_save_success(return_type, 1, "data/page1.html")
+	# trick website into thinking its a request from a real browser
+	headers: dict[str, str] = {
+		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+		"Accept-Encoding": "gzip, deflate",
+		"Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+		"Dnt": "1",
+		"Upgrade-Insecure-Requests": "1",
+		"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
+	}
 
-	# we need page 1 to find how many pages there are
-	if return_type == 0:
-		print("Aborting, page 1 needs to be saved properly!")
+	# directory where to save HTML files and csv/json files
+	data_dir: str = "data/"
+
+	# get page count from number of valid meteors on homepage to save time
+	homepage_scraper: PageScraper = PageScraper("https://www.lpi.usra.edu/meteor/metbull.php", headers=headers)
+	match: re.Match[str] | None = re.search(r"<b>Database stats:<\/b> (\d+) valid meteorite names", homepage_scraper.get_html())
+
+	if match is None:
+		print(f"Could not find meteor count on '{homepage_url}'. Aborting!")
 		return
-	
-	page1.init_parser()
 
-	# we do not initialise BeautifulSoup for a simple page count search (save memory and processing time)
-	# template <h4> text containing page number count: "Showing data for page 1 of 1514: records 1 - 50"
-	page_count: int = int(re.search(r"page \d+ of (\d+)", page1.h4.text).group(1)) # match the second number and add it to group #1 then save result of group #1 match
+	valid_meteor_count: int = int(match.group(1))
+	# kind of a hack to get rounding up
+	page_count: int = (valid_meteor_count - 1)//lrec + 1
 
-	pages: list[WebPage] = [page1]
+	print(f"Found {page_count} pages, starting HTML download...", "\n", sep="")
 
-	# make `args.threads` many threads to perform the downloading
-	with ThreadPoolExecutor(max_workers=args.threads) as executor:
-		i: int # index
-		futures = [executor.submit(get_saved_page, url, i) for i in range(2, page_count + 1)]
+	# we want to see how long the downloading took
+	start_time = time.time()
 
-	for future in as_completed(futures):
-		pages.append(future.result())
+	pages: dict[str, str] = {f"page{i}": url + f"&page={i}" for i in range(1, page_count + 1)}
+
+	# start the actual scraping with all the pages
+	scraper: MultiScraper = MultiScraper(pages, headers=headers)
+	return_types: dict[str, int] = scraper.init_scrapers(data_dir, args.threads)
+
+	name: str
+	for name in return_types.keys():
+		print_save_success(return_types[name], name, data_dir)
+
+	print("\n", f"Downloading finished, took about: {round(time.time() - start_time, 5)}s", sep = "")
 
 
 if __name__ == "__main__":
-    main()
+	main()
