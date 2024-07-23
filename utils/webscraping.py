@@ -12,7 +12,7 @@ class PageScraper:
 	html_path: str | None
 
 	initialised: bool
-	_parser: bs.BeautifulSoup | None
+	parser: bs.BeautifulSoup | None
 
 	def __init__(self, url: str, headers: dict[str, str]={}, html_path: str | None=None) -> None:
 		"""
@@ -33,7 +33,7 @@ class PageScraper:
 		self.html_path = html_path
 
 		self.initialised = False
-		self._parser = None
+		self.parser = None
 
 
 	def __str__(self) -> str:
@@ -108,7 +108,7 @@ class PageScraper:
 		assert self.html_path, "'html_path' class variable is not set, make sure to run 'class.save_html(path)'"
 
 		with open(self.html_path, "r") as html_doc:
-			self._parser = bs.BeautifulSoup(html_doc.read(), parser_type)
+			self.parser = bs.BeautifulSoup(html_doc.read(), parser_type)
 			self.initialised = True
 
 
@@ -117,8 +117,20 @@ class PageScraper:
 		Clears the current parser.
 		"""
 
-		self._parser = None
+		self.parser = None
+
 	
+	def delete_html(self) -> None:
+		"""
+		Deletes the HTML file stored at `class.html_path` if it exists.
+		"""
+
+		if self.html_path is None:
+			return
+		
+		if os.path.exists(self.html_path):
+			os.remove(self.html_path)
+		self.html_path = None
 
 
 class MultiScraper:

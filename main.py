@@ -1,7 +1,8 @@
 import re
+import time
 import argparse # command-line arguments
 
-from utils.webscraping import MultiScraper # locally sourced module
+from utils.webscraping import MultiScraper, PageScraper # locally sourced module
 
 
 # command-line argument setup
@@ -23,16 +24,23 @@ def print_save_success(return_type: int, name: str, data_dir: str) -> None:
 
 
 def main() -> None:
-	# website URL with preset search options:
-	#
 	# sea - search string (%2A = *)
+	sea = "%2A"
 	# sfor - search for (names, text, places, classes, years)
+	sfor = "names"
 	# valids - only approved meteorites
+	valids = "yes"
 	# stype - type of search (contains, startswith, exact, soundslike)
+	stype = "contains"
 	# lrec - lines per page (20, 50, 100, 200, 500, 1000, 2000, 5000, 50000)
+	lrec = 5000
 	# map - display decimal degrees location
-	# page - page number inof search
-	url: str = "https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&valids=yes&stype=contains&lrec=5000&map=ll&page="
+	map = "ll"
+
+	# Example URL: https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&ants=&nwas=&falls=&valids=yes&stype=contains&lrec=50&map=ll&browse=&country=All&srt=name&categ=All&mblist=All&rect=&phot=&strewn=&snew=0&pnt=Normal%20table&dr=&page=1
+	# website URL with preset search options
+	homepage_url = "https://www.lpi.usra.edu/meteor/metbull.php"
+	url: str = homepage_url + f"?sea={sea}&sfor={sfor}&valids={valids}&stype={stype}&lrec={lrec}&map={map}"
 
 	# trick website into thinking its a request from a real browser
 	headers: dict[str, str] = {
@@ -44,31 +52,37 @@ def main() -> None:
 		"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
 	}
 
-	pages: dict[str, str] = {
-		"page1": url + "1",
-		"page2": url + "2",
-		"page3": url + "3",
-		"page4": url + "4",
-		"page5": url + "5",
-		"page6": url + "6",
-		"page7": url + "7",
-		"page8": url + "8",
-		"page9": url + "9",
-		"page10": url + "10",
-		"page11": url + "11",
-		"page12": url + "12",
-		"page13": url + "13",
-		"page14": url + "14",
-		"page15": url + "15",
-		"page16": url + "16"
-	}
+	# directory where to save HTML files and csv/json files
+	data_dir: str = "data/"
 
-	scraper = MultiScraper(pages, headers=headers)
-	data_dir = "data/"
-	return_types = scraper.init_scrapers(data_dir, args.threads)
+	# get page count from number of valid meteors on homepage to save time
+	homepage_scraper: PageScraper = PageScraper("https://www.lpi.usra.edu/meteor/metbull.php", headers=headers)
+	match: re.Match[str] | None = re.search(r"<b>Database stats:<\/b> (\d+) valid meteorite names", homepage_scraper.get_html())
 
+	if match is None:
+		print(f"Could not find meteor count on '{homepage_url}'. Aborting!")
+		return
+
+	valid_meteor_count: int = int(match.group(1))
+	# kind of a hack to get rounding up
+	page_count: int = (valid_meteor_count - 1)//lrec + 1
+
+	print(f"Found {page_count} pages, starting HTML download...", "\n", sep="")
+
+	# we want to see how long the downloading took
+	start_time = time.time()
+
+	pages: dict[str, str] = {f"page{i}": url + f"&page={i}" for i in range(1, page_count + 1)}
+
+	# start the actual scraping with all the pages
+	scraper: MultiScraper = MultiScraper(pages, headers=headers)
+	return_types: dict[str, int] = scraper.init_scrapers(data_dir, args.threads)
+
+	name: str
 	for name in return_types.keys():
 		print_save_success(return_types[name], name, data_dir)
+
+	print("\n", f"Downloading finished, took about: {round(time.time() - start_time, 5)}s", sep = "")
 
 
 if __name__ == "__main__":
