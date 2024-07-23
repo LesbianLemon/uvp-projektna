@@ -89,6 +89,7 @@ class WebPage(bs.BeautifulSoup):
 				self.html_path = path
 				return 1
 			
+			print(e)
 			return 0
 
 	
