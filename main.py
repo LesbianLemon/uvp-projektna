@@ -23,6 +23,20 @@ def print_save_success(return_type: int, name: str, data_dir: str) -> None:
 			print(f"Page '{name}' saved successfully to '{path}'.") 
 
 
+# get page count from number of valid meteors on homepage to save time
+def get_page_count(homepage_url: str, per_page: int) -> int:
+	homepage_scraper: PageScraper = PageScraper("https://www.lpi.usra.edu/meteor/metbull.php", headers=headers)
+	match: re.Match[str] | None = re.search(r"<b>Database stats:<\/b> (\d+) valid meteorite names", homepage_scraper.get_html())
+
+	if match is None:
+		return -1
+
+	valid_meteor_count: int = int(match.group(1))
+
+	# kind of a hack to get rounding up
+	return (valid_meteor_count - 1)//per_page + 1
+
+
 def main() -> None:
 	# sea - search string (%2A = *)
 	sea = "%2A"
@@ -55,17 +69,11 @@ def main() -> None:
 	# directory where to save HTML files and csv/json files
 	data_dir: str = "data/"
 
-	# get page count from number of valid meteors on homepage to save time
-	homepage_scraper: PageScraper = PageScraper("https://www.lpi.usra.edu/meteor/metbull.php", headers=headers)
-	match: re.Match[str] | None = re.search(r"<b>Database stats:<\/b> (\d+) valid meteorite names", homepage_scraper.get_html())
-
-	if match is None:
+	# need page count to know how many websites to scrape
+	page_count: int = get_page_count(homepage_url, lrec)
+	if page_count == -1:
 		print(f"Could not find meteor count on '{homepage_url}'. Aborting!")
 		return
-
-	valid_meteor_count: int = int(match.group(1))
-	# kind of a hack to get rounding up
-	page_count: int = (valid_meteor_count - 1)//lrec + 1
 
 	print(f"Found {page_count} pages, starting HTML download...", "\n", sep="")
 
