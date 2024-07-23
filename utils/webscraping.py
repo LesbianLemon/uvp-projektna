@@ -24,7 +24,7 @@ class PageScraper:
 			| the website URL.
 		headers : dict[str, str], default=`{}`
 			| headers to be supplied with the http request
-		html : str, optional
+		html_path : str, optional
 			| path to webpage HTML file.
 		"""
 
@@ -54,16 +54,6 @@ class PageScraper:
 			| HTML source code.
 		"""
 
-		# trick website into thinking its a request from a real browser
-		headers: dict[str, str] = {
-			"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-			"Accept-Encoding": "gzip, deflate",
-			"Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
-			"Dnt": "1",
-			"Upgrade-Insecure-Requests": "1",
-			"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36",
-		}
-		
 		# adding headers requires Session
 		session = req.Session()
 		return req.get(self.url, headers=self.headers).text
@@ -90,8 +80,9 @@ class PageScraper:
 			return 1
 
 		try:
+			html = self.get_html()
 			with open(path, "w") as file:
-				file.write(self.get_html())
+				file.write(html)
 				self.html_path = path
 				return 2
 				
@@ -99,7 +90,7 @@ class PageScraper:
 			if os.path.exists(path):
 				os.remove(path)
 
-			print(f"{self} could not successfuly write to {path}: {err}")
+			print(f"{self} could not successfuly write to '{path}': {err}")
 			return 0
 
 	
@@ -114,7 +105,7 @@ class PageScraper:
 		"""
 
 		# make sure htaml_path is set before trying to initialise BeautifulSoup
-		assert self.html_path, "`html_path` class variable is not set, make sure to run `class.save_html(path)`"
+		assert self.html_path, "'html_path' class variable is not set, make sure to run 'class.save_html(path)'"
 
 		with open(self.html_path, "r") as html_doc:
 			self._parser = bs.BeautifulSoup(html_doc.read(), parser_type)
@@ -123,7 +114,7 @@ class PageScraper:
 
 	def stop_parser(self) -> None:
 		"""
-		Stops the parser if it is initialised.
+		Clears the current parser.
 		"""
 
 		self._parser = None
@@ -137,6 +128,17 @@ class MultiScraper:
 	scrapers: dict[str, PageScraper]
 
 	def __init__(self, pages: dict[str, str], headers: dict[str, str]={}) -> None:
+		"""
+		MultiScraper constructor.
+
+		Parameters
+		----------
+		pages : dict[str, str]
+			| a dictionary of custom name and URL pairs (the name will be used to represent the said URL anywhere possible)
+		headers : dict[str, str], default=`{}`
+			| headers to be supplied with the http requests for all the pages
+		"""
+
 		self.pages = pages
 		self.headers = headers
 
@@ -144,6 +146,23 @@ class MultiScraper:
 
 
 	def init_scrapers(self, save_dir: str, threads: int) -> dict[str, int]:
+		"""
+		Create and initialise all the scrapes for the provided pages.
+		This constructs the required PageScraper objects and saves them into `class.scrapers`, then performs a multithreaded HTML file save.
+
+		Parameters
+		----------
+		save_dir : str
+			| a directory of the following form `"path/to/dir/"` of where the method will save the pages HTML files
+		threads : int
+			| number of threads to be used during the multithreaded saving process
+
+		Returns
+		-------
+		dict[str, int]
+			| a dictionary of name and integer pairs (`0` - writing failed, `1` - file already exists, `2` - writing successful)
+		"""
+
 		with cf.ThreadPoolExecutor(max_workers=threads) as executor:
 			futures_to_name: dict[cf.Future, str] = {}
 

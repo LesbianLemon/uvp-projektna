@@ -15,11 +15,11 @@ def print_save_success(return_type: int, name: str, data_dir: str) -> None:
 	path = data_dir + f"{name}.html"
 	match return_type:
 		case 0:
-			print(f"Page `{name}` failed to be saved to `{path}`.")
+			print(f"Page '{name}' failed to be saved to '{path}'.")
 		case 1:
-			print(f"Page `{name}` already has an html file at `{path}`, using that instead.")
+			print(f"Page '{name}' already has an html file at '{path}', using that instead.")
 		case 2:
-			print(f"Page {name} saved successfully to `{path}`.") 
+			print(f"Page '{name}' saved successfully to '{path}'.") 
 
 
 def main() -> None:
