@@ -22,23 +22,6 @@ def print_save_success(return_type: int, page_num: int, path: str) -> None:
 			print(f"Page {page_num} saved successfully to `{path}`.") 
 
 
-# get a list of NON-INITIALISED WebPage elements (this is to reduce memory usage and processing time)
-def get_saved_pages(url: str, start_page:int, end_page: int, force: bool=False) -> list[WebPage]:
-	pages: list[WebPages] = []
-
-	page_num: int
-	for page_num in range(start_page, end_page + 1):
-		page: WebPage = WebPage(url + str(page_num))
-		path = f"data/page{page_num}.html"
-		return_type: int = page.save_html(path, force=force)
-
-		print_save_success(return_type, page_num, path)
-
-		pages.append(page)
-
-	return pages
-
-
 def get_saved_page(url: str, page_num: int) -> WebPage:
 	page: WebPage = WebPage(url + str(page_num))
 
@@ -90,8 +73,6 @@ def main() -> None:
 
 	for future in as_completed(futures):
 		pages.append(future.result())
-
-	print(*pages, sep="\n")
 
 
 if __name__ == "__main__":
