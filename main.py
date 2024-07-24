@@ -11,7 +11,7 @@ parser.add_argument("--threads", "-t", help="number of threads used for saving t
 args: argparse.Namespace = parser.parse_args()
 
 
-# save time and space by making a dedicated function for save feedback
+# save time and space by making a dedicated function for file saving feedback
 def print_save_success(return_type: int, name: str, data_dir: str) -> None:
 	path = data_dir + f"{name}.html"
 	match return_type:
@@ -24,9 +24,11 @@ def print_save_success(return_type: int, name: str, data_dir: str) -> None:
 
 
 # get page count from number of valid meteors on homepage to save time
-def get_page_count(homepage_url: str, per_page: int) -> int:
+# this improves execution speed from previous method of getting pagecount from first page (no need to load that much data)
+def get_page_count(homepage_url: str, per_page: int, headers: dict[str, str]) -> int:
 	homepage_scraper: PageScraper = PageScraper("https://www.lpi.usra.edu/meteor/metbull.php", headers=headers)
-	match: re.Match[str] | None = re.search(r"<b>Database stats:<\/b> (\d+) valid meteorite names", homepage_scraper.get_html())
+	pattern: str = r"<b>Database stats:<\/b> (\d+) valid meteorite names"
+	match: re.Match[str] | None = re.search(pattern, homepage_scraper.get_html())
 
 	if match is None:
 		return -1
@@ -38,18 +40,13 @@ def get_page_count(homepage_url: str, per_page: int) -> int:
 
 
 def main() -> None:
-	# sea - search string (%2A = *)
-	sea = "%2A"
-	# sfor - search for (names, text, places, classes, years)
-	sfor = "names"
-	# valids - only approved meteorites
-	valids = "yes"
-	# stype - type of search (contains, startswith, exact, soundslike)
-	stype = "contains"
-	# lrec - lines per page (20, 50, 100, 200, 500, 1000, 2000, 5000, 50000)
-	lrec = 5000
-	# map - display decimal degrees location
-	map = "ll"
+	#===================VARIABLES====================#
+	sea = "%2A" # sea - search string (%2A = *)
+	sfor = "names" # sfor - search for (names, text, places, classes, years)
+	valids = "yes" # valids - only approved meteorites
+	stype = "contains" # stype - type of search (contains, startswith, exact, soundslike)
+	lrec = 5000 # lrec - lines per page (20, 50, 100, 200, 500, 1000, 2000, 5000, 50000)
+	map = "ll" # map - display decimal degrees location
 
 	# Example URL: https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&ants=&nwas=&falls=&valids=yes&stype=contains&lrec=50&map=ll&browse=&country=All&srt=name&categ=All&mblist=All&rect=&phot=&strewn=&snew=0&pnt=Normal%20table&dr=&page=1
 	# website URL with preset search options
@@ -68,29 +65,34 @@ def main() -> None:
 
 	# directory where to save HTML files and csv/json files
 	data_dir: str = "data/"
+	#================================================#
 
 	# need page count to know how many websites to scrape
-	page_count: int = get_page_count(homepage_url, lrec)
+	page_count: int = get_page_count(homepage_url, lrec, headers)
+	# function return -1 if no match was found
 	if page_count == -1:
 		print(f"Could not find meteor count on '{homepage_url}'. Aborting!")
 		return
 
-	print(f"Found {page_count} pages, starting HTML download...", "\n", sep="")
+	print(f"Found {page_count} pages, starting HTML download...")
+
+	pages: dict[str, str] = {f"page{i}": url + f"&page={i}" for i in range(1, page_count + 1)}
 
 	# we want to see how long the downloading took
 	start_time = time.time()
 
-	pages: dict[str, str] = {f"page{i}": url + f"&page={i}" for i in range(1, page_count + 1)}
-
 	# start the actual scraping with all the pages
 	scraper: MultiScraper = MultiScraper(pages, headers=headers)
-	return_types: dict[str, int] = scraper.init_scrapers(data_dir, args.threads)
+	return_types: dict[str, int] = scraper.init_scrapers(data_dir + "html/", args.threads)
+
+	end_time = time.time()
+	print(f"Downloading finished, took about: {round(end_time - start_time, 5)}s", "\n", sep = "")
 
 	name: str
 	for name in return_types.keys():
-		print_save_success(return_types[name], name, data_dir)
-
-	print("\n", f"Downloading finished, took about: {round(time.time() - start_time, 5)}s", sep = "")
+		print_save_success(return_types[name], name, data_dir + "html/")
+	
+	
 
 
 if __name__ == "__main__":

@@ -81,7 +81,7 @@ class PageScraper:
 
 		try:
 			html = self.get_html()
-			with open(path, "w") as file:
+			with open(path, "w", encoding="utf-8") as file:
 				file.write(html)
 				self.html_path = path
 				return 2
@@ -107,7 +107,7 @@ class PageScraper:
 		# make sure htaml_path is set before trying to initialise BeautifulSoup
 		assert self.html_path, "'html_path' class variable is not set, make sure to run 'class.save_html(path)'"
 
-		with open(self.html_path, "r") as html_doc:
+		with open(self.html_path, "r", encoding="utf-8") as html_doc:
 			self.parser = bs.BeautifulSoup(html_doc.read(), parser_type)
 			self.initialised = True
 
