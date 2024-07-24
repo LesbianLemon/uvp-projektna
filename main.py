@@ -4,10 +4,10 @@ import argparse # command-line arguments
 
 from utils.webscraping import MultiScraper, PageScraper # locally sourced module
 
-# from typing import TypedDict, Unpack # used for typing **kwargs
+from typing import Callable # typing for functions
 
 
-#===================VARIABLES====================#
+#===================GLOBAL VARIABLES====================#
 # see `get_url()` function for info on valid options
 sea: str = "%2A" # sea - search string (%2A = *)
 sfor: str = "names" # sfor - search for
@@ -35,7 +35,7 @@ headers: dict[str, str] = {
 data_dir: str = "data/"
 # directory where to save HTML files
 html_data_dir: str = "data/html/"
-#================================================#
+#=======================================================#
 
 
 # command-line argument setup
@@ -48,14 +48,14 @@ args: argparse.Namespace = parser.parse_args()
 # typing for **kwargs ignored due to annoyance and complexity
 # make the url with valid options
 def get_url(**kwargs) -> str:
-	# preset the valid options we can change
-	options: dict[str, list[str]] = {
-		"sea": [], # empty string to represent allowing any string
-		"sfor": ["names", "text", "places", "classes", "years"],
-		"valids": ["yes", ""],
-		"stype": ["contains", "starts", "exact", "sounds"],
-		"lrec": ["20", "50", "100", "200", "500", "1000", "2000", "5000", "50000"],
-		"map": ["gg", "ge", "ww", "ll", "dm", "none"]
+	# preset the valid options we can change and a lambda function to validate the input with
+	options: dict[str, Callable[[str], bool]] = {
+		"sea": lambda x: type(x) is str,
+		"sfor": lambda x: x in ["names", "text", "places", "classes", "years"],
+		"valids": lambda x: x in ["yes", ""],
+		"stype": lambda x: x in ["contains", "starts", "exact", "sounds"],
+		"lrec": lambda x: type(x) is str and x.isnumeric(), # lrec can be any number positive number represented as a string
+		"map": lambda x: x in ["gg", "ge", "ww", "ll", "dm", "none"]
 	}
 	url: str = homepage_url
 
@@ -65,11 +65,10 @@ def get_url(**kwargs) -> str:
 		value = kwargs[arg_name] # have to do it like this to avoid mypy complaints
 
 		if arg_name in options.keys():
-			# sea option has empty list
-			is_sea: bool = not options[arg_name]
-			if (is_sea and type(value) is str) or (value in options[arg_name]):
+
+			if options[arg_name](value):
 				url += f"&{arg_name}={value}"
-	
+
 	return url
 
 
@@ -87,8 +86,8 @@ def print_save_success(return_type: int, name: str, path: str) -> None:
 # get page count from number of results on smaller page to save time
 # this improves execution speed from previous method of getting pagecount from first page (no need to load that much data)
 def get_page_count() -> int:
-	# scrape with same options, but only 20 meteorites per page to save time
-	small_scraper: PageScraper = PageScraper(get_url(sea=sea, sfor=sfor, valids=valids, stype=stype, lrec="20", map=map), headers=headers)
+	# scrape with same options, but only 1 meteorite per page to save time
+	small_scraper: PageScraper = PageScraper(get_url(sea=sea, sfor=sfor, valids=valids, stype=stype, lrec="1", map=map), headers=headers)
 	pattern: str = r"(\d+) records found"
 	match: re.Match[str] | None = re.search(pattern, small_scraper.get_html())
 
