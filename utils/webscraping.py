@@ -157,7 +157,7 @@ class MultiScraper:
 		self.scrapers = {}
 
 
-	def init_scrapers(self, save_dir: str, threads: int) -> dict[str, int]:
+	def init_scrapers(self, save_dir: str, threads: int, force: bool=False) -> dict[str, int]:
 		"""
 		Create and initialise all the scrapes for the provided pages.
 		This constructs the required PageScraper objects and saves them into `class.scrapers`, then performs a multithreaded HTML file save.
@@ -168,6 +168,8 @@ class MultiScraper:
 			| a directory of the following form `"path/to/dir/"` of where the method will save the pages HTML files
 		threads : int
 			| number of threads to be used during the multithreaded saving process
+		force : bool, default=`False`
+			| whether to force overwriting exsisting files when initiating scrapers
 
 		Returns
 		-------
@@ -185,7 +187,7 @@ class MultiScraper:
 				self.scrapers[name] = page_scraper
 
 				path: str = save_dir + f"{name}.html"
-				futures_to_name.update({executor.submit(page_scraper.save_html, path): name})
+				futures_to_name.update({executor.submit(page_scraper.save_html, path, force=force): name})
 
 			return_types: dict[str, int] = {}
 
