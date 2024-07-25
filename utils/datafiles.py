@@ -15,6 +15,11 @@ class Directory(str):
 		----------
 		dir_path : str, default="."
 			| a path to a valid directory
+
+		Raises
+		------
+		ValueError
+			| when `dir_path` is not a valid directory path
 		"""
 
 		if os.path.isdir(dir_path):
@@ -105,7 +110,7 @@ class File:
 
 
 	def __str__(self) -> str:
-		return f"<File, {self._path}>"
+		return f"<File path={self._path}>"
 
 
 	def exists(self) -> bool:
@@ -195,7 +200,7 @@ class HTMLFile(File):
 		
 	
 	def __str__(self) -> str:
-		return f"<HTMLFile, {self._path}>"
+		return f"<HTMLFile path={self._path}>"
 
 
 	def write_html(
@@ -243,7 +248,7 @@ class CSVFile(File):
 
 	
 	def __str__(self) -> str:
-		return f"<CSVFile, {self._path}>"
+		return f"<CSVFile path={self._path}>"
 
 
 	def write_rows(

@@ -30,7 +30,7 @@ class PageScraper:
 		headers : dict[str, str], default=`{}`
 			| headers to be supplied with the http request
 		html_file : HTMLFile, optional
-			| HTMLFile object representing the file to save to
+			| an HTMLFile object representing the file to save to
 		"""
 
 		self.url = url
@@ -64,7 +64,7 @@ class PageScraper:
 		return req.get(self.url, headers=self.headers).text
 
 
-	def save_html(self, dir: Directory, filename: str, force: bool=False) -> Literal[0, 1, 2]:
+	def save_html(self, dir: Directory, filename: str, force: bool=False) -> tuple[HTMLFile, Literal[0, 1, 2]]:
 		"""
 		Saves HTML of given website URL to given directory with given filename and properly sets `html_file` instance variable.
 
@@ -79,8 +79,8 @@ class PageScraper:
 
 		Returns
 		-------
-		int
-			| `0` if writing failed, `1` if the file is already present and force=False, `2` if writing was successful
+		tuple[HTMLFile, Literal[0, 1, 2]]
+			| pair of HTMLFile object representing the stored HTML file and write success (`0` if failed, `1` if file already exists, `2` if successful)
 		"""
 
 		self.html_file = HTMLFile(dir, filename)
@@ -88,8 +88,8 @@ class PageScraper:
 		# not the nicest implementation, but will do
 		def custom_writer(file: TextIOWrapper) -> None:
 			file.write(self.get_html())
-		# we override with our custom writer to make sure self.get_html() gets called as late as possible
-		return self.html_file.write_html("", force=force, writer=custom_writer) # since we are overriding with out custom writer, write content is skipped
+		# we override with our custom writer to make sure self.get_html() gets called as late as possible (overriding causes write content to be skipped)
+		return self.html_file, self.html_file.write_html("", force=force, writer=custom_writer)
 
 
 	def clear_html(self, remove: bool=False) -> None:
@@ -114,7 +114,12 @@ class PageScraper:
 		Parameters
 		----------
 		parser_type : str, default=`"html.parser"`
-			| a valid `BeautifulSoup` parser for the saved HTML file
+			| a valid BeautifulSoup parser for the saved HTML file
+
+		Raises
+		------
+		RuntimeError
+			| when trying to start the parser without `html_file` being set
 		"""
 
 		# make sure htaml_file is set before trying to initialise BeautifulSoup
@@ -157,7 +162,7 @@ class MultiScraper:
 		self.scrapers = {}
 
 
-	def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False) -> dict[str, Literal[0, 1, 2]]:
+	def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False) -> dict[HTMLFile, Literal[0, 1, 2]]:
 		"""
 		Create and initialise all the scrapes for the provided pages.
 		This constructs the required PageScraper objects and saves them into `class.scrapers`, then performs a multithreaded HTML file save.
@@ -173,12 +178,12 @@ class MultiScraper:
 
 		Returns
 		-------
-		dict[str, int]
-			| a dictionary of name and integer pairs (`0` - writing failed, `1` - file already exists, `2` - writing successful)
+		dict[HTMLFile, Literal[0, 1, 2]]
+			| a dictionary of HTMLFile and write success pairs (`0` if failed, `1` if file already exists, `2` if successful)
 		"""
 
 		with cf.ThreadPoolExecutor(max_workers=threads) as executor:
-			futures_to_name: dict[cf.Future, str] = {}
+			futures: list[cf.Future] = []
 
 			name: str
 			url: str
@@ -186,12 +191,13 @@ class MultiScraper:
 				page_scraper: PageScraper = PageScraper(url, headers=self.headers)
 				self.scrapers[name] = page_scraper
 
-				futures_to_name.update({executor.submit(page_scraper.save_html, save_dir, name, force=force): name})
+				futures.append(executor.submit(page_scraper.save_html, save_dir, name, force=force))
 
-			return_types: dict[str, Literal[0, 1, 2]] = {}
+			files_success: dict[HTMLFile, Literal[0, 1, 2]] = {}
 
 			future: cf.Future
-			for future in cf.as_completed(futures_to_name):
-				return_types[futures_to_name[future]] = future.result()
+			for future in cf.as_completed(futures):
+				result: tuple[HTMLFile, Literal[0, 1, 2]] = future.result()
+				files_success[result[0]] = result[1]
 
-			return return_types
+			return files_success

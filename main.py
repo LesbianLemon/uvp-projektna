@@ -4,7 +4,7 @@ import argparse # command-line arguments
 
 # locally sourced modules
 from utils.webscraping import MultiScraper, PageScraper
-from utils.datafiles import Directory
+from utils.datafiles import Directory, File, HTMLFile
 
 from typing import Callable, Literal # typing for functions
 
@@ -74,14 +74,14 @@ def get_url(**kwargs) -> str:
 
 
 # save time and space by making a dedicated function for file saving feedback
-def print_save_success(return_type: Literal[0, 1, 2], name: str, path: str) -> None:
-	match return_type:
+def print_save_success(save_success: Literal[0, 1, 2], file: File) -> None:
+	match save_success:
 		case 0:
-			print(f"Page '{name}' failed to be saved to '{path}'.")
+			print(f"'{file}' failed to be saved.") 
 		case 1:
-			print(f"Page '{name}' already has an html file at '{path}', using that instead.")
+			print(f"'{file}' already exists, using that instead.")
 		case 2:
-			print(f"Page '{name}' saved successfully to '{path}'.") 
+			print(f"'{file}' saved successfully.") 
 
 
 # get page count from number of results on smaller page to save time
@@ -122,14 +122,14 @@ def main() -> None:
 
 	# start the actual scraping with all the pages
 	scraper: MultiScraper = MultiScraper(pages, headers=headers)
-	return_types: dict[str, Literal[0, 1, 2]] = scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
+	files_success: dict[HTMLFile, Literal[0, 1, 2]] = scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
 
 	end_time = time.time()
 	print(f"Downloading finished, took about: {round(end_time - start_time, 5)}s", "\n", sep = "")
 
-	name: str
-	for name in return_types.keys():
-		print_save_success(return_types[name], name, html_data_dir + f"{name}.html")
+	file: HTMLFile
+	for file in files_success.keys():
+		print_save_success(files_success[file], file)
 
 
 if __name__ == "__main__":
