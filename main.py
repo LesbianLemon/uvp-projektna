@@ -2,9 +2,11 @@ import re
 import time
 import argparse # command-line arguments
 
-from utils.webscraping import MultiScraper, PageScraper # locally sourced module
+# locally sourced modules
+from utils.webscraping import MultiScraper, PageScraper
+from utils.datafiles import Directory
 
-from typing import Callable # typing for functions
+from typing import Callable, Literal # typing for functions
 
 
 #===================GLOBAL VARIABLES====================#
@@ -32,9 +34,9 @@ headers: dict[str, str] = {
 }
 
 # directory where to save resulting csv/json files
-data_dir: str = "data/"
+data_dir: Directory = Directory("data/")
 # directory where to save HTML files
-html_data_dir: str = "data/html/"
+html_data_dir: Directory = Directory("data/html/")
 #=======================================================#
 
 
@@ -60,9 +62,8 @@ def get_url(**kwargs) -> str:
 	url: str = homepage_url
 
 	arg_name: str
-	value: str
 	for arg_name in kwargs:
-		value = kwargs[arg_name] # have to do it like this to avoid mypy complaints
+		value: str = kwargs[arg_name] # have to do it like this to avoid mypy complaints
 
 		if arg_name in options.keys():
 
@@ -73,7 +74,7 @@ def get_url(**kwargs) -> str:
 
 
 # save time and space by making a dedicated function for file saving feedback
-def print_save_success(return_type: int, name: str, path: str) -> None:
+def print_save_success(return_type: Literal[0, 1, 2], name: str, path: str) -> None:
 	match return_type:
 		case 0:
 			print(f"Page '{name}' failed to be saved to '{path}'.")
@@ -121,7 +122,7 @@ def main() -> None:
 
 	# start the actual scraping with all the pages
 	scraper: MultiScraper = MultiScraper(pages, headers=headers)
-	return_types: dict[str, int] = scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
+	return_types: dict[str, Literal[0, 1, 2]] = scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
 
 	end_time = time.time()
 	print(f"Downloading finished, took about: {round(end_time - start_time, 5)}s", "\n", sep = "")

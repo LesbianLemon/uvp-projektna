@@ -5,32 +5,37 @@ import os
 
 import concurrent.futures as cf
 
+from typing import Literal
+from io import TextIOWrapper
+
+from .datafiles import Directory, HTMLFile
+
 
 class PageScraper:
 	url: str
 	headers: dict[str, str]
-	html_path: str | None
+	html_file: HTMLFile | None
 
 	initialised: bool
 	parser: bs.BeautifulSoup | None
 
-	def __init__(self, url: str, headers: dict[str, str]={}, html_path: str | None=None) -> None:
+	def __init__(self, url: str, headers: dict[str, str]={}, html_file: HTMLFile | None=None) -> None:
 		"""
-		PageScraper constructor.
+		PageScraper initialiser.
 
 		Parameters
 		----------
 		url : str
-			| the website URL.
+			| the website URL
 		headers : dict[str, str], default=`{}`
 			| headers to be supplied with the http request
-		html_path : str, optional
-			| path to webpage HTML file.
+		html_file : HTMLFile, optional
+			| HTMLFile object representing the file to save to
 		"""
 
 		self.url = url
 		self.headers = headers
-		self.html_path = html_path
+		self.html_file = html_file
 
 		self.initialised = False
 		self.parser = None
@@ -41,7 +46,7 @@ class PageScraper:
 
 
 	def __repr__(self) -> str:
-		return f"PageScraper(url={self.url}, headers={self.headers}, html_path={self.html_path}, initialised={self.initialised})"
+		return f"PageScraper(url={self.url}, headers={self.headers}, html_file={self.html_file}, initialised={self.initialised})"
 
 	
 	def get_html(self) -> str:
@@ -51,7 +56,7 @@ class PageScraper:
 		Returns
 		-------
 		str
-			| HTML source code.
+			| HTML source code
 		"""
 
 		# adding headers requires Session
@@ -59,16 +64,18 @@ class PageScraper:
 		return req.get(self.url, headers=self.headers).text
 
 
-	def save_html(self, path: str, force: bool=False) -> int:
+	def save_html(self, dir: Directory, filename: str, force: bool=False) -> Literal[0, 1, 2]:
 		"""
-		Saves HTML of given website URL to given path and adds said path to `html_path` class variable.
+		Saves HTML of given website URL to given directory with given filename and properly sets `html_file` instance variable.
 
 		Parameters
 		----------
-		path : str
-			| the location where to store the read HTML data.
+		dir : Directory
+			| the directory where to store the read HTML data
+		filename : str
+			| name of the file to create/write to
 		force : bool, default=`False`
-			| whether to force over-writing the provided file path (if `False` and path already exists it will also set `html_path` variable to said path)
+			| whether to force over-writing the provided file (if `False` and file already exists it will also set `html_file` variable to said file)
 
 		Returns
 		-------
@@ -76,27 +83,33 @@ class PageScraper:
 			| `0` if writing failed, `1` if the file is already present and force=False, `2` if writing was successful
 		"""
 
-		if os.path.exists(path) and not force:
-			return 1
+		self.html_file = HTMLFile(dir, filename)
 
-		try:
-			html = self.get_html()
-			with open(path, "w", encoding="utf-8") as file:
-				file.write(html)
-				self.html_path = path
-				return 2
-				
-		except Exception as err:
-			if os.path.exists(path):
-				os.remove(path)
+		# not the nicest implementation, but will do
+		def custom_writer(file: TextIOWrapper) -> None:
+			file.write(self.get_html())
+		# we override with our custom writer to make sure self.get_html() gets called as late as possible
+		return self.html_file.write_html("", force=force, writer=custom_writer) # since we are overriding with out custom writer, write content is skipped
 
-			print(f"{self} could not successfuly write to '{path}': {err}")
-			return 0
+
+	def clear_html(self, remove: bool=False) -> None:
+		"""
+		Clears the `html_file` instance variable and deletes the file if desired.
+
+		Parameters
+		----------
+		remove : bool, default=`False`
+			| whether to delete the file while clearing the `html_file` instance variable
+		"""
+
+		if self.html_file and remove:
+			self.html_file.remove()
+		self.html_file = None
 
 	
 	def start_parser(self, parser_type: str="html.parser") -> None:
 		"""
-		Starts the parser if html_path variable is set.
+		Starts the parser if html_file variable is set.
 
 		Parameters
 		----------
@@ -104,12 +117,12 @@ class PageScraper:
 			| a valid `BeautifulSoup` parser for the saved HTML file
 		"""
 
-		# make sure htaml_path is set before trying to initialise BeautifulSoup
-		assert self.html_path, "'html_path' class variable is not set, make sure to run 'class.save_html(path)'"
+		# make sure htaml_file is set before trying to initialise BeautifulSoup
+		if not self.html_file:
+			raise RuntimeError("Cannot start parser without `html_file` being set")
 
-		with open(self.html_path, "r", encoding="utf-8") as html_doc:
-			self.parser = bs.BeautifulSoup(html_doc.read(), parser_type)
-			self.initialised = True
+		self.parser = bs.BeautifulSoup(self.html_file.read(), parser_type)
+		self.initialised = True
 
 
 	def stop_parser(self) -> None:
@@ -120,19 +133,6 @@ class PageScraper:
 		self.parser = None
 
 	
-	def delete_html(self) -> None:
-		"""
-		Deletes the HTML file stored at `class.html_path` if it exists.
-		"""
-
-		if self.html_path is None:
-			return
-		
-		if os.path.exists(self.html_path):
-			os.remove(self.html_path)
-		self.html_path = None
-
-
 class MultiScraper:
 	pages: dict[str, str]
 	headers: dict[str, str]
@@ -141,7 +141,7 @@ class MultiScraper:
 
 	def __init__(self, pages: dict[str, str], headers: dict[str, str]={}) -> None:
 		"""
-		MultiScraper constructor.
+		MultiScraper initialiser.
 
 		Parameters
 		----------
@@ -157,15 +157,15 @@ class MultiScraper:
 		self.scrapers = {}
 
 
-	def init_scrapers(self, save_dir: str, threads: int, force: bool=False) -> dict[str, int]:
+	def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False) -> dict[str, Literal[0, 1, 2]]:
 		"""
 		Create and initialise all the scrapes for the provided pages.
 		This constructs the required PageScraper objects and saves them into `class.scrapers`, then performs a multithreaded HTML file save.
 
 		Parameters
 		----------
-		save_dir : str
-			| a directory of the following form `"path/to/dir/"` of where the method will save the pages HTML files
+		save_dir : Directory
+			| a Directory object representing where the method will save the pages HTML files
 		threads : int
 			| number of threads to be used during the multithreaded saving process
 		force : bool, default=`False`
@@ -186,10 +186,9 @@ class MultiScraper:
 				page_scraper: PageScraper = PageScraper(url, headers=self.headers)
 				self.scrapers[name] = page_scraper
 
-				path: str = save_dir + f"{name}.html"
-				futures_to_name.update({executor.submit(page_scraper.save_html, path, force=force): name})
+				futures_to_name.update({executor.submit(page_scraper.save_html, save_dir, name, force=force): name})
 
-			return_types: dict[str, int] = {}
+			return_types: dict[str, Literal[0, 1, 2]] = {}
 
 			future: cf.Future
 			for future in cf.as_completed(futures_to_name):
