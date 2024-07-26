@@ -1,10 +1,11 @@
 import re
+import unicodedata # dealing with unicode
 import time
 import argparse # command-line arguments
 
 # locally sourced modules
 from utils.webscraping import PageScraper, MultiScraper
-from utils.datafiles import Directory, File, CSVFile
+from utils.datafiles import Directory, File, CSVFile, JSONFile
 
 from typing import Callable # typing for functions
 
@@ -107,24 +108,56 @@ def download_pages(scraper: MultiScraper) -> None:
 	print("\n", f"Downloading finished, took about: {round(end_time - start_time, 5)}s", sep = "")
 
 
-def parse_page(page_scraper: PageScraper) -> bool:
-	# skipping typing in try block due to complexity
-	# mypy does not automatically ignore try/except block so we add "# type: ignore"
-	try:
-		table = page_scraper.parser.find("table", { "id": "maintable" }) # type: ignore
-		table_rows = table.find_all("tr") # type: ignore
+def transform_data(data: str) -> str | int | float | tuple[float, float]:
+	# replace non-breaking space with normal whitespace
+	data = unicodedata.normalize("NFKC", data)
+	# remove any other unicode character
+	data = data.encode("ascii", "ignore").decode().strip()
 
-		table_head = table_rows[0] # type: ignore
-		thead_variables = [th.text for th in table_head.find_all("th", { "class": "insidehead" })] # type: ignore
-
-		return True
+	if data.isnumeric():
+		return int(data)
 	
-	except Exception as err:
-		print(f"Error while parsing with {page_scraper}: {err}")
-		return False
+	match_mass: re.Match[str] | None = re.match(r"(?P<number>\d+\.?\d*)\s+(?P<unit>k?g)", data)
+
+	if not match_mass is None:
+		unit: str = match_mass.groupdict()["unit"]
+		mul: int = 1000 if unit == "kg" else 1
+
+		return mul*float(match_mass.groupdict()["number"])
+
+	match_ll: re.Match[str] | None = re.match(r"\(([-|+]?\d+\.\d+),\s+([-|+]?\d+\.\d+)\)", data)
+
+	if not match_ll is None:
+		return (float(match_ll.group(1)), float(match_ll.group(2)))
+
+	return data
 
 
-def parse_all_pages(scraper: MultiScraper, output_file: File | None=None) -> None:
+def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, dict[str, str | int | float | tuple[float, float]]]:
+	# skipping typing for BeautifulSoup due to annoying None type
+	table = page_scraper.parser.find("table", { "id": "maintable" }) # type: ignore
+	table_rows = table.find_all("tr") # type: ignore
+
+	table_head = table_rows[0] # type: ignore
+	thead_variables: list[str] = [th.text.strip() for th in table_head.find_all("th", { "class": "insidehead" })]
+
+	result_dict: dict[str, dict[str, str | int | float | tuple[float, float]]] = {}
+
+	i: int
+	for i in range(1, len(table_rows)):
+		row = table_rows[i] # type: ignore
+		data: list[str | int | float | tuple[float, float]] = [transform_data(td.text) for td in row.find_all("td")]
+
+		# zip the variables and data, filter the empty data then make a dictionary
+		meteorite_dict: dict[str, str | int | float | tuple[float, float]] = dict(filter(lambda t: t[1] != "", zip(thead_variables, data)))
+		result_dict[f"{page_name}-{i}"] = meteorite_dict
+
+	return result_dict
+
+
+def parse_all_pages(scraper: MultiScraper, json_file: JSONFile) -> None:
+	json_dict: dict[str, dict[str, str | int | float | tuple[float, float]]] = {}
+
 	page_name: str
 	for page_name in scraper.pages.keys():
 		page_scraper: PageScraper = scraper.get_scraper(page_name)
@@ -133,16 +166,13 @@ def parse_all_pages(scraper: MultiScraper, output_file: File | None=None) -> Non
 		start_time: float = time.time()
 		
 		page_scraper.start_parser()
-		success: bool = parse_page(page_scraper)
+		json_dict.update(parse_page(page_scraper, page_name))
 		page_scraper.stop_parser()
 
 		end_time: float = time.time()
-		time_taken: float = round(end_time - start_time, 5)
+		print(f"Finished parsing '{page_name}'! Time taken: {round(end_time - start_time, 5)}s")
 
-		if success:
-			print(f"Successfuly parsed '{page_name}'! Time taken: {time_taken}s")
-		else:
-			print(f"Parsing '{page_name}' failed! Time taken: {time_taken}")
+	json_file.write_json(json_dict, force=True)
 
 
 def main() -> None:
@@ -163,7 +193,8 @@ def main() -> None:
 	download_pages(scraper)
 
 	# start HTML parsing
-	parse_all_pages(scraper)
+	json_file = JSONFile(data_dir, "output")
+	parse_all_pages(scraper, json_file)
 
 	
 if __name__ == "__main__":

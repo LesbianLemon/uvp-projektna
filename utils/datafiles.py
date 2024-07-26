@@ -341,11 +341,11 @@ class JSONFile(File):
 		return f"<JSONFile path={self._path}>"
 
 
-	# yes this is ugly and awful!
-	JSONAccepted = dict["JSONAccepted", "JSONAccepted"] | list["JSONAccepted"] | tuple["JSONAccepted"] | str | int | float | bool | None
+	# this does not work i am done, no type hints for json
+	# JSONVal = dict["JSONVal", "JSONVal"] | list["JSONVal"] | tuple["JSONVal"] | str | int | float | bool | None
 	def write_json(
 		self,
-		json_data: JSONAccepted,
+		json_data, # type: ignore
 		force: bool=False,
 		writer: Callable[[TextIOWrapper], None] | None=None
 	) -> None:
@@ -356,7 +356,7 @@ class JSONFile(File):
 
 		Parameters
 		----------
-		columns : JSONAccepted
+		json_data : no actual type, but: (	# JSONVal = dict[str, JSONVal] | list[JSONVal] | tuple[JSONVal] | str | int | float | bool | None)
 			| an object made up of only the types accepted by json library
 		force : bool, default=`False`
 			| whether to force over-writing the file
@@ -366,7 +366,7 @@ class JSONFile(File):
 
 		if writer is None:
 			def custom_writer(file: TextIOWrapper):
-				json.dump(json_data, file)
+				json.dump(json_data, file, indent=4)
 			writer = custom_writer
 
 		self.write(writer, force=force)
