@@ -1,11 +1,8 @@
 import requests as req
 import bs4 as bs
 
-import os
-
 import concurrent.futures as cf
 
-from typing import Literal
 from io import TextIOWrapper
 
 from .datafiles import Directory, HTMLFile
@@ -16,7 +13,6 @@ class PageScraper:
 	headers: dict[str, str]
 	html_file: HTMLFile | None
 
-	initialised: bool
 	parser: bs.BeautifulSoup | None
 
 	def __init__(self, url: str, headers: dict[str, str]={}, html_file: HTMLFile | None=None) -> None:
@@ -37,7 +33,6 @@ class PageScraper:
 		self.headers = headers
 		self.html_file = html_file
 
-		self.initialised = False
 		self.parser = None
 
 
@@ -46,7 +41,33 @@ class PageScraper:
 
 
 	def __repr__(self) -> str:
-		return f"PageScraper(url={self.url}, headers={self.headers}, html_file={self.html_file}, initialised={self.initialised})"
+		return f"PageScraper(url={self.url}, headers={self.headers}, html_file={self.html_file})"
+
+
+	def is_initialised(self) -> bool:
+		"""
+		Checks if the PageScraper is ready to start parsing.
+
+		Returns
+		-------
+		bool
+			| `True` if ready otherwise `False`
+		"""
+
+		return not self.html_file is None
+
+
+	def is_parsing(self) -> bool:
+		"""
+		Checks if the PageScraper parser is running.
+
+		Returns
+		-------
+		bool
+			| `True` if the parser is active otherwise `False`
+		"""
+
+		return not self.parser is None
 
 	
 	def get_html(self) -> str:
@@ -64,32 +85,25 @@ class PageScraper:
 		return req.get(self.url, headers=self.headers).text
 
 
-	def save_html(self, dir: Directory, filename: str, force: bool=False) -> tuple[HTMLFile, Literal[0, 1, 2]]:
+	def save_html(self, html_file: HTMLFile, force: bool=False) -> None:
 		"""
 		Saves HTML of given website URL to given directory with given filename and properly sets `html_file` instance variable.
 
 		Parameters
 		----------
-		dir : Directory
-			| the directory where to store the read HTML data
-		filename : str
-			| name of the file to create/write to
+		file : HTMLFile
+			| HTMLFile object of the file to write to
 		force : bool, default=`False`
 			| whether to force over-writing the provided file (if `False` and file already exists it will also set `html_file` variable to said file)
-
-		Returns
-		-------
-		tuple[HTMLFile, Literal[0, 1, 2]]
-			| pair of HTMLFile object representing the stored HTML file and write success (`0` if failed, `1` if file already exists, `2` if successful)
 		"""
 
-		self.html_file = HTMLFile(dir, filename)
+		self.html_file = html_file
 
 		# not the nicest implementation, but will do
 		def custom_writer(file: TextIOWrapper) -> None:
 			file.write(self.get_html())
 		# we override with our custom writer to make sure self.get_html() gets called as late as possible (overriding causes write content to be skipped)
-		return self.html_file, self.html_file.write_html("", force=force, writer=custom_writer)
+		self.html_file.write_html("", force=force, writer=custom_writer)
 
 
 	def clear_html(self, remove: bool=False) -> None:
@@ -114,7 +128,7 @@ class PageScraper:
 		Parameters
 		----------
 		parser_type : str, default=`"html.parser"`
-			| a valid BeautifulSoup parser for the saved HTML file
+			| a valid BeautifulSoup parser
 
 		Raises
 		------
@@ -126,8 +140,7 @@ class PageScraper:
 		if not self.html_file:
 			raise RuntimeError("Cannot start parser without `html_file` being set")
 
-		self.parser = bs.BeautifulSoup(self.html_file.read(), parser_type)
-		self.initialised = True
+		self.parser = bs.BeautifulSoup(self.html_file.read_html(), parser_type)
 
 
 	def stop_parser(self) -> None:
@@ -162,7 +175,7 @@ class MultiScraper:
 		self.scrapers = {}
 
 
-	def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False) -> dict[HTMLFile, Literal[0, 1, 2]]:
+	def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False) -> None:
 		"""
 		Create and initialise all the scrapes for the provided pages.
 		This constructs the required PageScraper objects and saves them into `class.scrapers`, then performs a multithreaded HTML file save.
@@ -174,30 +187,59 @@ class MultiScraper:
 		threads : int
 			| number of threads to be used during the multithreaded saving process
 		force : bool, default=`False`
-			| whether to force overwriting exsisting files when initiating scrapers
-
-		Returns
-		-------
-		dict[HTMLFile, Literal[0, 1, 2]]
-			| a dictionary of HTMLFile and write success pairs (`0` if failed, `1` if file already exists, `2` if successful)
+			| whether to force over-writing exsisting files when initiating scrapers
 		"""
 
 		with cf.ThreadPoolExecutor(max_workers=threads) as executor:
-			futures: list[cf.Future] = []
-
 			name: str
 			url: str
 			for name, url in self.pages.items():
 				page_scraper: PageScraper = PageScraper(url, headers=self.headers)
 				self.scrapers[name] = page_scraper
 
-				futures.append(executor.submit(page_scraper.save_html, save_dir, name, force=force))
+				html_file = HTMLFile(save_dir, name)
+				executor.submit(page_scraper.save_html, html_file, force=force)
 
-			files_success: dict[HTMLFile, Literal[0, 1, 2]] = {}
 
-			future: cf.Future
-			for future in cf.as_completed(futures):
-				result: tuple[HTMLFile, Literal[0, 1, 2]] = future.result()
-				files_success[result[0]] = result[1]
+	def is_used(self, page_name: str) -> bool:
+		"""
+		Checks if `page_name` is part of list of pages being used by MultiScraper.
 
-			return files_success
+		Parameters
+		----------
+		page_name : str
+			| name representing the page you wish to check
+
+		Returns
+		-------
+		bool
+			| `True` if is being used and `False` if not
+		"""
+
+		return page_name in self.pages.keys()
+
+	
+	def get_scraper(self, page_name: str) -> PageScraper:
+		"""
+		Gets the PageScraper of the page represented by `page_name` from class initialisation.
+
+		Parameters
+		----------
+		page_name
+			| name given to page at start of MultiScraper initialisation
+
+		Returns
+		-------
+		PageScraper
+			| the requested PageScraper
+
+		Raises
+		------
+		ValueError
+			| when improper `page_name` is supplied
+		"""
+
+		if not self.is_used(page_name):
+			raise ValueError("No page matches given `page_name`")
+
+		return self.scrapers[page_name]

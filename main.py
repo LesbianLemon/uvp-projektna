@@ -3,10 +3,10 @@ import time
 import argparse # command-line arguments
 
 # locally sourced modules
-from utils.webscraping import MultiScraper, PageScraper
-from utils.datafiles import Directory, File, HTMLFile
+from utils.webscraping import PageScraper, MultiScraper
+from utils.datafiles import Directory, File, CSVFile
 
-from typing import Callable, Literal # typing for functions
+from typing import Callable # typing for functions
 
 
 #===================GLOBAL VARIABLES====================#
@@ -21,7 +21,6 @@ map: str = "ll" # map - display decimal degrees location
 # Example URL: https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&ants=&nwas=&falls=&valids=yes&stype=contains&lrec=50&map=ll&browse=&country=All&srt=name&categ=All&mblist=All&rect=&phot=&strewn=&snew=0&pnt=Normal%20table&dr=&page=1
 # website URL with preset search options
 homepage_url: str = "https://www.lpi.usra.edu/meteor/metbull.php?"
-# url: str = homepage_url + f"?sea={sea}&sfor={sfor}&valids={valids}&stype={stype}&lrec={lrec}&map={map}"
 
 # trick website into thinking its a request from a real browser
 headers: dict[str, str] = {
@@ -73,17 +72,6 @@ def get_url(**kwargs) -> str:
 	return url
 
 
-# save time and space by making a dedicated function for file saving feedback
-def print_save_success(save_success: Literal[0, 1, 2], file: File) -> None:
-	match save_success:
-		case 0:
-			print(f"'{file}' failed to be saved.") 
-		case 1:
-			print(f"'{file}' already exists, using that instead.")
-		case 2:
-			print(f"'{file}' saved successfully.") 
-
-
 # get page count from number of results on smaller page to save time
 # this improves execution speed from previous method of getting pagecount from first page (no need to load that much data)
 def get_page_count() -> int:
@@ -98,8 +86,63 @@ def get_page_count() -> int:
 	meteor_count: int = int(match.group(1))
 
 	# kind of a hack to get rounding up
-	per_page = int(lrec)
-	return (meteor_count - 1)//per_page + 1
+	per_page: int = int(lrec)
+	page_count: int = (meteor_count - 1)//per_page + 1
+
+	print(f"Found {page_count} pages.")
+	return page_count
+
+
+def download_pages(scraper: MultiScraper) -> None:
+	print(f"Starting HTML download...", "\n", sep="")
+	start_time: float = time.time()
+
+	# initialise the scrapers (download HTML files)
+	scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
+
+	end_time: float = time.time()
+
+	for page_name in scraper.scrapers.keys():
+		print(f"Page '{page_name}' is being parsed with {scraper.scrapers[page_name].html_file}")
+	print("\n", f"Downloading finished, took about: {round(end_time - start_time, 5)}s", sep = "")
+
+
+def parse_page(page_scraper: PageScraper) -> bool:
+	# skipping typing in try block due to complexity
+	# mypy does not automatically ignore try/except block so we add "# type: ignore"
+	try:
+		table = page_scraper.parser.find("table", { "id": "maintable" }) # type: ignore
+		table_rows = table.find_all("tr") # type: ignore
+
+		table_head = table_rows[0] # type: ignore
+		thead_variables = [th.text for th in table_head.find_all("th", { "class": "insidehead" })] # type: ignore
+
+		return True
+	
+	except Exception as err:
+		print(f"Error while parsing with {page_scraper}: {err}")
+		return False
+
+
+def parse_all_pages(scraper: MultiScraper, output_file: File | None=None) -> None:
+	page_name: str
+	for page_name in scraper.pages.keys():
+		page_scraper: PageScraper = scraper.get_scraper(page_name)
+
+		print("\n", f"Starting parsing for '{page_name}'...", sep="")
+		start_time: float = time.time()
+		
+		page_scraper.start_parser()
+		success: bool = parse_page(page_scraper)
+		page_scraper.stop_parser()
+
+		end_time: float = time.time()
+		time_taken: float = round(end_time - start_time, 5)
+
+		if success:
+			print(f"Successfuly parsed '{page_name}'! Time taken: {time_taken}s")
+		else:
+			print(f"Parsing '{page_name}' failed! Time taken: {time_taken}")
 
 
 def main() -> None:
@@ -113,24 +156,15 @@ def main() -> None:
 		print(f"Could not find number of pages. Aborting!")
 		return
 
-	print(f"Found {page_count} pages, starting HTML download...")
-
 	pages: dict[str, str] = {f"page{i}": url + f"&page={i}" for i in range(1, page_count + 1)}
-
-	# we want to see how long the downloading took
-	start_time = time.time()
-
-	# start the actual scraping with all the pages
 	scraper: MultiScraper = MultiScraper(pages, headers=headers)
-	files_success: dict[HTMLFile, Literal[0, 1, 2]] = scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
 
-	end_time = time.time()
-	print(f"Downloading finished, took about: {round(end_time - start_time, 5)}s", "\n", sep = "")
+	# start page downloading
+	download_pages(scraper)
 
-	file: HTMLFile
-	for file in files_success.keys():
-		print_save_success(files_success[file], file)
+	# start HTML parsing
+	parse_all_pages(scraper)
 
-
+	
 if __name__ == "__main__":
 	main()
