@@ -43,7 +43,7 @@ html_data_dir: Directory = Directory("data/html/")
 # command-line argument setup
 parser: argparse.ArgumentParser = argparse.ArgumentParser()
 parser.add_argument("--threads", "-t", help="number of threads used for saving the HTML files", type=int, default=8)
-parser.add_argument("--no-force", help="will disable overwriting files with the same name", action="store_false", dest="force")
+parser.add_argument("--no-force", help="will not download HTML files again if they already exist", action="store_false", dest="force")
 args: argparse.Namespace = parser.parse_args()
 
 
@@ -58,12 +58,12 @@ type MeteoriteDict = dict[str, MeteoriteValue]
 def get_url(**kwargs) -> str:
 	# preset the valid options we can change and a lambda function to validate the input with
 	options: dict[str, Callable[[str], bool]] = {
-		"sea": lambda x: type(x) is str,
-		"sfor": lambda x: x in ["names", "text", "places", "classes", "years"],
-		"valids": lambda x: x in ["yes", ""],
-		"stype": lambda x: x in ["contains", "starts", "exact", "sounds"],
-		"lrec": lambda x: type(x) is str and x.isnumeric(), # lrec can be any number positive number represented as a string
-		"map": lambda x: x in ["gg", "ge", "ww", "ll", "dm", "none"]
+		"sea": lambda s: type(s) is str,
+		"sfor": lambda s: s in ["names", "text", "places", "classes", "years"],
+		"valids": lambda s: s in ["yes", ""],
+		"stype": lambda s: s in ["contains", "starts", "exact", "sounds"],
+		"lrec": lambda s: type(s) is str and s.isnumeric(), # lrec can be any number positive number represented as a string
+		"map": lambda s: s in ["gg", "ge", "ww", "ll", "dm", "none"]
 	}
 	url: str = homepage_url
 
@@ -79,6 +79,7 @@ def get_url(**kwargs) -> str:
 	return url
 
 
+# TODO: find a faster way of getting page count
 # get page count from number of results on smaller page to save time
 # this improves execution speed from previous method of getting pagecount from first page (no need to load that much data)
 def get_page_count() -> int:
@@ -114,29 +115,88 @@ def download_pages(scraper: MultiScraper) -> None:
 	print("\n", f"Downloading finished, took about: {round(end_time - start_time, 5)}s", sep = "")
 
 
-def transform_data(data: str) -> MeteoriteValue:
+def transform_year(data: str) -> int | float | str:
+	# grab the first number and ignore the rest and possibly a unit (some meteorites have years like "1967 or 1927")
+	# not statistically the best, it would be better to drop them
+	match_year: re.Match[str] | None = re.match(r"^.*?(?P<first_number>\d+\.?\d*).*?(?P<unit>(?:[a-zA-Z]?a)?)$", data)
+
+	if not match_year is None:
+		conversion: dict[str, int] = {
+			"ma": 1_000_000,
+			"ka": 1_000,
+			"a": 1,
+			"": 1 # if no unit found also just multiply by one
+		}
+
+		unit: str = match_year.groupdict()["unit"].lower()
+		number_match: str = match_year.groupdict()["first_number"]
+		first_number: int | float = int(number_match) if unit == "" and number_match.isdecimal() else float(number_match)
+
+		return conversion[unit]*first_number
+
+	# if no match, delete the field
+	return ""
+
+
+def transform_mass(data: str) -> float | str:
+	match_mass: re.Match[str] | None = re.match(r"^(?P<amount>\d+\.?\d*)\s+(?P<unit>t|T|(?:[a-zA-Z]?g))$", data)
+
+	if not match_mass is None:
+		conversion: dict[str, float] = {
+			"t": 1_000_000.0,
+			"kg": 1_000.0,
+			"g": 1.0,
+			"mg": 0.001
+		}
+		
+		unit: str = match_mass.groupdict()["unit"].lower()
+		amount: float = float(match_mass.groupdict()["amount"])
+
+		return conversion[unit]*amount
+
+	# if no match, delete the field
+	return ""
+
+
+def transform_ll(data: str) -> tuple[float, float] | str:
+	match_ll: re.Match[str] | None = re.match(r"\(([-|+]?\d+\.\d+),\s+([-|+]?\d+\.\d+)\)", data)
+
+	# will match if value is (Lat, Long), then convert it into tuple of floats
+	if not match_ll is None:
+		return (float(match_ll.group(1)), float(match_ll.group(2)))
+
+	# if no match, delete the field
+	return ""
+
+
+def transform_data(data: str, data_variable: str) -> MeteoriteValue:
 	# replace non-breaking space with normal whitespace
 	data = unicodedata.normalize("NFKC", data)
 	# remove any other unicode character
 	data = data.encode("ascii", "ignore").decode().strip()
 
-	if data.isnumeric():
+	# if field is empty or unknown, we want to skip transforming
+	match_unknown: re.Match[str] | None = re.match(r"^\(?unknown\)?$", data, flags=re.IGNORECASE)
+	if data == "" or not match_unknown is None:
+		return ""
+
+	which_transform: dict[str, Callable[[str], MeteoriteValue]] = {
+		"Year": transform_year,
+		# "Place": transform_place,
+		"Mass": transform_mass,
+		"(Lat,Long)": transform_ll
+	}
+
+	# return valid numbers right away
+	if data.lstrip("-").isdecimal():
 		return int(data)
 
-	match_mass: re.Match[str] | None = re.match(r"(?P<number>\d+\.?\d*)\s+(?P<unit>k?g)", data)
+	# use approprite transform based on column type
+	if data_variable in which_transform.keys():
+		return which_transform[data_variable](data)
 
-	if not match_mass is None:
-		unit: str = match_mass.groupdict()["unit"]
-		mul: int = 1000 if unit == "kg" else 1
-
-		return mul*float(match_mass.groupdict()["number"])
-
-	match_ll: re.Match[str] | None = re.match(r"\(([-|+]?\d+\.\d+),\s+([-|+]?\d+\.\d+)\)", data)
-
-	if not match_ll is None:
-		return (float(match_ll.group(1)), float(match_ll.group(2)))
-
-	return data
+	# remaining data needs to be stripped of special characters like "*" and "#"
+	return data.rstrip(" *#")
 
 
 def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, MeteoriteDict]:
@@ -152,7 +212,7 @@ def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, Meteorite
 	i: int
 	for i in range(1, len(table_rows)):
 		row = table_rows[i] # type: ignore
-		data: list[MeteoriteValue] = [transform_data(td.text) for td in row.find_all("td")]
+		data: list[MeteoriteValue] = [transform_data(td.text, thead_variables[j]) for j, td in enumerate(row.find_all("td"))]
 
 		# zip the variables and data, filter the empty data then make a dictionary
 		meteorite_dict: MeteoriteDict = dict(filter(lambda t: t[1] != "", zip(thead_variables, data)))
