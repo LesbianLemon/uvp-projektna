@@ -121,7 +121,7 @@ class File:
 
 		return os.path.exists(self._path)
 
-	
+
 	def write(self, writer: Callable[[TextIOWrapper], None], force: bool=False) -> None:
 		"""
 		Tries writing to file using `writer`.
@@ -138,7 +138,7 @@ class File:
 		if not self.exists() or force:
 			with open(self._path, "w", encoding="utf-8") as file:
 				writer(file)
-	
+
 
 	def read(self, reader: Callable[[TextIOWrapper], Any]) -> Any:
 		"""
@@ -190,8 +190,8 @@ class HTMLFile(File):
 		"""
 
 		super().__init__(dir, filename + ".html")
-		
-	
+
+
 	def __str__(self) -> str:
 		return f"<HTMLFile path={self._path}>"
 
@@ -214,7 +214,7 @@ class HTMLFile(File):
 		force : bool, default=`False`
 			| whether to force over-writing the file
 		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written 
+			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
 		"""
 
 		if writer is None:
@@ -255,11 +255,11 @@ class CSVFile(File):
 		"""
 
 		super().__init__(dir, filename + ".csv")
-		
+
 		self.delimiter = delimiter
 		self.quotechar = quotechar
 
-	
+
 	def __str__(self) -> str:
 		return f"<CSVFile path={self._path}>"
 
@@ -282,7 +282,7 @@ class CSVFile(File):
 		force : bool, default=`False`
 			| whether to force over-writing the file
 		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written 
+			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
 		"""
 
 		if writer is None:
@@ -314,7 +314,7 @@ class CSVFile(File):
 		force : bool, default=`False`
 			| whether to force over-writing the file
 		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written 
+			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
 		"""
 
 		rows: Iterable[Iterable[str]] = zip(*columns) # columns to rows iterable
@@ -336,12 +336,12 @@ class JSONFile(File):
 
 		super().__init__(dir, filename + ".json")
 
-	
+
 	def __str__(self) -> str:
 		return f"<JSONFile path={self._path}>"
 
 
-	# this does not work i am done, no type hints for json
+	# this does not work, i am done, no type hints for json
 	# JSONVal = dict["JSONVal", "JSONVal"] | list["JSONVal"] | tuple["JSONVal"] | str | int | float | bool | None
 	def write_json(
 		self,
@@ -356,12 +356,12 @@ class JSONFile(File):
 
 		Parameters
 		----------
-		json_data : no actual type, but: (	# JSONVal = dict[str, JSONVal] | list[JSONVal] | tuple[JSONVal] | str | int | float | bool | None)
+		json_data : no actual type, but: (JSONVal = dict[str, JSONVal] | list[JSONVal] | tuple[JSONVal] | str | int | float | bool | None)
 			| an object made up of only the types accepted by json library
 		force : bool, default=`False`
 			| whether to force over-writing the file
 		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written 
+			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
 		"""
 
 		if writer is None:

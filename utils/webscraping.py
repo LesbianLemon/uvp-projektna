@@ -69,11 +69,11 @@ class PageScraper:
 
 		return not self.parser is None
 
-	
+
 	def get_html(self) -> str:
 		"""
 		Access the website URL and return the HTML source code representing the webpage.
-		
+
 		Returns
 		-------
 		str
@@ -120,7 +120,7 @@ class PageScraper:
 			self.html_file.remove()
 		self.html_file = None
 
-	
+
 	def start_parser(self, parser_type: str="html.parser") -> None:
 		"""
 		Starts the parser if html_file variable is set.
@@ -150,7 +150,7 @@ class PageScraper:
 
 		self.parser = None
 
-	
+
 class MultiScraper:
 	pages: dict[str, str]
 	headers: dict[str, str]
@@ -218,7 +218,7 @@ class MultiScraper:
 
 		return page_name in self.pages.keys()
 
-	
+
 	def get_scraper(self, page_name: str) -> PageScraper:
 		"""
 		Gets the PageScraper of the page represented by `page_name` from class initialisation.

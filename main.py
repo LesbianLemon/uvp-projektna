@@ -47,6 +47,12 @@ parser.add_argument("--no-force", help="will disable overwriting files with the 
 args: argparse.Namespace = parser.parse_args()
 
 
+# mypy type checking requires use of --enable-incomplete-feature=NewGenericSyntax
+# custom types used later on to shorten typing annotations - REQUIRES PYTHON 3.12+!!!
+type MeteoriteValue = str | int | float | tuple[float, float]
+type MeteoriteDict = dict[str, MeteoriteValue]
+
+
 # typing for **kwargs ignored due to annoyance and complexity
 # make the url with valid options
 def get_url(**kwargs) -> str:
@@ -108,7 +114,7 @@ def download_pages(scraper: MultiScraper) -> None:
 	print("\n", f"Downloading finished, took about: {round(end_time - start_time, 5)}s", sep = "")
 
 
-def transform_data(data: str) -> str | int | float | tuple[float, float]:
+def transform_data(data: str) -> MeteoriteValue:
 	# replace non-breaking space with normal whitespace
 	data = unicodedata.normalize("NFKC", data)
 	# remove any other unicode character
@@ -116,7 +122,7 @@ def transform_data(data: str) -> str | int | float | tuple[float, float]:
 
 	if data.isnumeric():
 		return int(data)
-	
+
 	match_mass: re.Match[str] | None = re.match(r"(?P<number>\d+\.?\d*)\s+(?P<unit>k?g)", data)
 
 	if not match_mass is None:
@@ -133,7 +139,7 @@ def transform_data(data: str) -> str | int | float | tuple[float, float]:
 	return data
 
 
-def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, dict[str, str | int | float | tuple[float, float]]]:
+def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, MeteoriteDict]:
 	# skipping typing for BeautifulSoup due to annoying None type
 	table = page_scraper.parser.find("table", { "id": "maintable" }) # type: ignore
 	table_rows = table.find_all("tr") # type: ignore
@@ -141,22 +147,22 @@ def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, dict[str,
 	table_head = table_rows[0] # type: ignore
 	thead_variables: list[str] = [th.text.strip() for th in table_head.find_all("th", { "class": "insidehead" })]
 
-	result_dict: dict[str, dict[str, str | int | float | tuple[float, float]]] = {}
+	result_dict: dict[str, MeteoriteDict] = {}
 
 	i: int
 	for i in range(1, len(table_rows)):
 		row = table_rows[i] # type: ignore
-		data: list[str | int | float | tuple[float, float]] = [transform_data(td.text) for td in row.find_all("td")]
+		data: list[MeteoriteValue] = [transform_data(td.text) for td in row.find_all("td")]
 
 		# zip the variables and data, filter the empty data then make a dictionary
-		meteorite_dict: dict[str, str | int | float | tuple[float, float]] = dict(filter(lambda t: t[1] != "", zip(thead_variables, data)))
+		meteorite_dict: MeteoriteDict = dict(filter(lambda t: t[1] != "", zip(thead_variables, data)))
 		result_dict[f"{page_name}-{i}"] = meteorite_dict
 
 	return result_dict
 
 
 def parse_all_pages(scraper: MultiScraper, json_file: JSONFile) -> None:
-	json_dict: dict[str, dict[str, str | int | float | tuple[float, float]]] = {}
+	json_dict: dict[str, MeteoriteDict] = {}
 
 	page_name: str
 	for page_name in scraper.pages.keys():
@@ -164,7 +170,7 @@ def parse_all_pages(scraper: MultiScraper, json_file: JSONFile) -> None:
 
 		print("\n", f"Starting parsing for '{page_name}'...", sep="")
 		start_time: float = time.time()
-		
+
 		page_scraper.start_parser()
 		json_dict.update(parse_page(page_scraper, page_name))
 		page_scraper.stop_parser()
@@ -192,10 +198,10 @@ def main() -> None:
 	# start page downloading
 	download_pages(scraper)
 
-	# start HTML parsing
+	# start HTML parsing and save to JSON file
 	json_file = JSONFile(data_dir, "output")
 	parse_all_pages(scraper, json_file)
 
-	
+
 if __name__ == "__main__":
 	main()
