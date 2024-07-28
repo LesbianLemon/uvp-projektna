@@ -2,8 +2,7 @@ import csv
 import json
 import os
 
-from typing import Any, Callable, Iterable, Never
-from collections.abc import Collection
+from typing import Any, Callable, Iterable
 from io import TextIOWrapper
 
 
