@@ -52,7 +52,6 @@ args: argparse.Namespace = parser.parse_args()
 type MeteoriteValue = str | int | float | tuple[float, float]
 type MeteoriteDict = dict[str, MeteoriteValue]
 
-
 # typing for **kwargs ignored due to annoyance and complexity
 # make the url with valid options
 def get_url(**kwargs) -> str:
@@ -121,6 +120,7 @@ def transform_year(data: str) -> int | float | str:
 	match_year: re.Match[str] | None = re.match(r"^.*?(?P<first_number>\d+\.?\d*).*?(?P<unit>(?:[a-zA-Z]?a)?)$", data)
 
 	if not match_year is None:
+		# craters have their age stored in year column, making this more complex
 		conversion: dict[str, int] = {
 			"ma": 1_000_000,
 			"ka": 1_000,
@@ -130,6 +130,7 @@ def transform_year(data: str) -> int | float | str:
 
 		unit: str = match_year.groupdict()["unit"].lower()
 		number_match: str = match_year.groupdict()["first_number"]
+		# if we found a unit or a float, we have a crater and return a float, otherwise just and integer will do
 		first_number: int | float = int(number_match) if unit == "" and number_match.isdecimal() else float(number_match)
 
 		return conversion[unit]*first_number
@@ -148,7 +149,7 @@ def transform_mass(data: str) -> float | str:
 			"g": 1.0,
 			"mg": 0.001
 		}
-		
+
 		unit: str = match_mass.groupdict()["unit"].lower()
 		amount: float = float(match_mass.groupdict()["amount"])
 
@@ -187,8 +188,8 @@ def transform_data(data: str, data_variable: str) -> MeteoriteValue:
 		"(Lat,Long)": transform_ll
 	}
 
-	# return valid numbers right away
-	if data.lstrip("-").isdecimal():
+	# return valid numbers right away (isdecimal is False for negative numbers)
+	if data.removeprefix("-").isdecimal():
 		return int(data)
 
 	# use approprite transform based on column type
@@ -199,7 +200,8 @@ def transform_data(data: str, data_variable: str) -> MeteoriteValue:
 	return data.rstrip(" *#")
 
 
-def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, MeteoriteDict]:
+# parse the page and get variable names and resulting data in JSON-like form
+def parse_page(page_scraper: PageScraper) -> tuple[list[str], list[MeteoriteDict]]:
 	# skipping typing for BeautifulSoup due to annoying None type
 	table = page_scraper.parser.find("table", { "id": "maintable" }) # type: ignore
 	table_rows = table.find_all("tr") # type: ignore
@@ -207,7 +209,7 @@ def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, Meteorite
 	table_head = table_rows[0] # type: ignore
 	thead_variables: list[str] = [th.text.strip() for th in table_head.find_all("th", { "class": "insidehead" })]
 
-	result_dict: dict[str, MeteoriteDict] = {}
+	page_metdict_list: list[MeteoriteDict] = []
 
 	i: int
 	for i in range(1, len(table_rows)):
@@ -216,13 +218,14 @@ def parse_page(page_scraper: PageScraper, page_name: str) -> dict[str, Meteorite
 
 		# zip the variables and data, filter the empty data then make a dictionary
 		meteorite_dict: MeteoriteDict = dict(filter(lambda t: t[1] != "", zip(thead_variables, data)))
-		result_dict[f"{page_name}-{i}"] = meteorite_dict
+		page_metdict_list.append(meteorite_dict)
 
-	return result_dict
+	return thead_variables, page_metdict_list
 
 
-def parse_all_pages(scraper: MultiScraper, json_file: JSONFile) -> None:
-	json_dict: dict[str, MeteoriteDict] = {}
+def parse_all_pages(scraper: MultiScraper, json_file: JSONFile, csv_file: CSVFile) -> None:
+	metdict_list: list[MeteoriteDict] = []
+	all_variables: dict[str, str] = {} # make dict instead of set data somewhat ordered
 
 	page_name: str
 	for page_name in scraper.pages.keys():
@@ -232,13 +235,23 @@ def parse_all_pages(scraper: MultiScraper, json_file: JSONFile) -> None:
 		start_time: float = time.time()
 
 		page_scraper.start_parser()
-		json_dict.update(parse_page(page_scraper, page_name))
+		page_variables: list[str]
+		page_metdict_list: list[MeteoriteDict]
+		page_variables, page_metdict_list = parse_page(page_scraper)
 		page_scraper.stop_parser()
+
+		metdict_list.extend(page_metdict_list)
+		# keep track of all the variables for later (needed for CSV file)
+		all_variables.update(dict(zip(page_variables, [""]*len(page_variables))))
 
 		end_time: float = time.time()
 		print(f"Finished parsing '{page_name}'! Time taken: {round(end_time - start_time, 5)}s")
 
-	json_file.write_json(json_dict, force=True)
+	# always over-write output file
+	json_file.write_json(metdict_list, force=True)
+	# keys of `all_variables` are fieldnames for the CSV file
+	# always over-write output file
+	csv_file.write_dict(all_variables.keys(), metdict_list, force=True)
 
 
 def main() -> None:
@@ -258,9 +271,11 @@ def main() -> None:
 	# start page downloading
 	download_pages(scraper)
 
-	# start HTML parsing and save to JSON file
+	# start HTML parsing and save to JSON and CSV file
 	json_file = JSONFile(data_dir, "output")
-	parse_all_pages(scraper, json_file)
+	# change delimiter to semicolon due to many values containing comma
+	csv_file = CSVFile(data_dir, "output", delimiter=";")
+	parse_all_pages(scraper, json_file, csv_file)
 
 
 if __name__ == "__main__":

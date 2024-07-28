@@ -2,7 +2,8 @@ import csv
 import json
 import os
 
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Never
+from collections.abc import Collection
 from io import TextIOWrapper
 
 
@@ -203,7 +204,7 @@ class HTMLFile(File):
 		writer: Callable[[TextIOWrapper], None] | None=None
 	) -> None: # break arguments into seperate lines to avoid line being to long
 		"""
-		Write the given HTML to the file.
+		Writes the given HTML to the file.
 		Does not over-write unless `force` is set to `True`.
 		If a custom `writer` is supplied, `html` is ignored and only `writer` is executed.
 
@@ -226,6 +227,26 @@ class HTMLFile(File):
 
 
 	def read_html(self, reader: Callable[[TextIOWrapper], Any] | None=None) -> Any:
+		"""
+		Reads the contents of the HTML file.
+		If a custom `reader` is supplied, returns the result of that instead.
+
+		Parameters
+		----------
+		reader : Callable[[TextIOWrapper], Any], optional
+			| a callable object to be executed when file is opened, the output of which will then be returned
+
+		Returns
+		-------
+		Any
+			| output of `reader` or HTML code as string if no `reader` is supplied
+
+		Raises
+		------
+		RuntimeError
+			| when trying to read a non-existent file
+		"""
+
 		if reader is None:
 			def custom_reader(file: TextIOWrapper) -> str:
 				return file.read()
@@ -271,7 +292,7 @@ class CSVFile(File):
 		writer: Callable[[TextIOWrapper], None] | None=None
 	) -> None: # break arguments into seperate lines to avoid line being to long
 		"""
-		Write given rows to CSV file.
+		Writes given rows to CSV file.
 		Does not over-write unless `force` is set to `True`.
 		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
 
@@ -288,7 +309,11 @@ class CSVFile(File):
 		if writer is None:
 			def custom_writer(file: TextIOWrapper) -> None:
 				# typing ignored due to weird csv._writer type being inaccessible
-				csv_writer = csv.writer(file, delimiter=self.delimiter, quotechar=self.quotechar, quoting=csv.QUOTE_MINIMAL)  # type: ignore
+				csv_writer = csv.writer(file, # type: ignore
+					delimiter=self.delimiter,
+					quotechar=self.quotechar,
+					quoting=csv.QUOTE_MINIMAL
+				)
 				csv_writer.writerows(rows)
 			writer = custom_writer
 
@@ -302,7 +327,7 @@ class CSVFile(File):
 		writer: Callable[[TextIOWrapper], None] | None=None
 	) -> None: # break arguments into seperate lines to avoid line being to long
 		"""
-		Write given columns to CSV file.
+		Writes given columns to CSV file.
 		If columns do not hold the same amount of values, will write smallest length column values per column.
 		Does not over-write unless `force` is set to `True`.
 		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
@@ -320,6 +345,49 @@ class CSVFile(File):
 		rows: Iterable[Iterable[str]] = zip(*columns) # columns to rows iterable
 		self.write_rows(rows, force=force, writer=writer)
 
+
+	def write_dict(
+		self,
+		fieldnames, # type: ignore # do not undestand Collection[Never]
+		data: Iterable[dict[str, Any]],
+		force: bool=False,
+		writer: Callable[[TextIOWrapper], None] | None=None
+	) -> None: # break arguments into seperate lines to avoid line being to long
+		"""
+		Writes given iterable of dictionaries to CSV file.
+		Does not over-write unless `force` is set to `True`.
+		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
+
+		Parameters
+		----------
+		fieldnames: no actual type, but (Collection[Never])
+			| field names to be used when creating the file
+		data : Iterable[dict[str, Any]]
+			| an iterable containing dictionary to be written of fieldname and value pairs
+		force : bool, default=`False`
+			| whether to force over-writing the file
+		writer : Callable[[TextIOWrapper], None], optional
+			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+		"""
+
+		if writer is None:
+			def custom_writer(file: TextIOWrapper) -> None:
+				dict_writer: csv.DictWriter = csv.DictWriter(
+					file,
+					fieldnames=fieldnames,
+					delimiter=self.delimiter,
+					quotechar=self.quotechar,
+					quoting=csv.QUOTE_MINIMAL
+				)
+				dict_writer.writeheader()
+				dict_writer.writerows(data)
+			writer = custom_writer
+
+		self.write(writer, force=force)
+
+
+# mypy type checking requires use of --enable-incomplete-feature=NewGenericSyntax
+# custom types used later on to shorten typing annotations - REQUIRES PYTHON 3.12+!!!
 
 class JSONFile(File):
 	def __init__(self, dir: Directory, filename: str) -> None:
@@ -350,7 +418,7 @@ class JSONFile(File):
 		writer: Callable[[TextIOWrapper], None] | None=None
 	) -> None:
 		"""
-		Write given columns to JSON file.
+		Writes given data to JSON file.
 		Does not over-write unless `force` is set to `True`.
 		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
 
@@ -370,3 +438,32 @@ class JSONFile(File):
 			writer = custom_writer
 
 		self.write(writer, force=force)
+
+
+	def read_json(self, reader: Callable[[TextIOWrapper], Any]) -> Any:
+		"""
+		Reads the contents of the HTML file.
+		If a custom `reader` is supplied, returns the result of that instead.
+
+		Parameters
+		----------
+		reader : Callable[[TextIOWrapper], Any], optional
+			| a callable object to be executed when file is opened, the output of which will then be returned
+
+		Returns
+		-------
+		Any
+			| output of `reader` or HTML code as string if no `reader` is supplied
+
+		Raises
+		------
+		RuntimeError
+			| when trying to read a non-existent file
+		"""
+
+		if reader is None:
+			def custom_reader(file: TextIOWrapper) -> str:
+				return json.load(file)
+			reader = custom_reader
+
+		return self.read(reader)
