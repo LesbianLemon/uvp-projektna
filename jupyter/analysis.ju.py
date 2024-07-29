@@ -208,15 +208,24 @@ Pogledali bomo povezave med različnimi spremenljivkami z uporabo grafov.
 """
 # %% [markdown]
 """
-#### Meteoriti skozi čas
+#### Meteoriti in kraterji skozi čas
 Poskusimo narisati grafe števila meteoritov skozi zgodovino.
+Zaradi ponavljanja prehodno naredimo funkcijo, kateri podamo željene pogoje za risanje grafa.
 """
+# %%
+def get_met_counts_min_year(min_year, decades=False):
+    col_min_year = met_df[met_df["Year"] >= min_year]["Year"]
+
+    if decades:
+        col_min_year = (col_min_year//10)*10
+
+    return col_min_year.value_counts().sort_index()
 # %% [markdown]
 """
 Graf števila padlih meteoritov v desetletju od leta 1700 dalje:
 """
 # %%
-((met_df[met_df["Year"] > 1800]["Year"]//10)*10).value_counts().sort_index().plot.bar(ylabel="Amount")
+get_met_counts_min_year(1800, decades=True).plot.bar(xlabel="Decade", ylabel="Amount")
 # %% [markdown]
 """
 Očitno je, da so skoraj vsi meteoriti v podatkovni bazi iz zadnjih 50 let, zato moramo časovno obdobje skrajšati, da dobimo boljšo predstavo.
@@ -224,13 +233,13 @@ Očitno je, da so skoraj vsi meteoriti v podatkovni bazi iz zadnjih 50 let, zato
 Graf števila padlih meteoritov v desetletju od leta 1950 dalje:
 """
 # %%
-((met_df[met_df["Year"] > 1950]["Year"]//10)*10).value_counts().sort_index().plot.bar(ylabel="Amount")
+get_met_counts_min_year(1950, decades=True).plot.bar(xlabel="Decade", ylabel="Amount")
 # %% [markdown]
 """
 Graf števila padlih meteoritov v letu od leta 1950 dalje:
 """
 # %%
-met_df[met_df["Year"] > 1950]["Year"].value_counts().sort_index().plot(ylabel="Amount")
+get_met_counts_min_year(1950, decades=False).plot(ylabel="Amount")
 # %% [markdown]
 """
 Podatki delujejo zelo naključni, z zelo velikimi skoki in padci iz leta v leto.
@@ -238,4 +247,99 @@ To bi lahko bila posledica, da ob prodoru meteorja v atmosfero ta ponavadi razpa
 Torej bi lahko ob padcu velikega meteorita, ki se razbije na tisoče delov graf močno poskočil.
 
 Ko pogledamo graf po desetletjih, zgleda ta že manj naključen, vendar še vedno vidimo velike razlike med desetletji.
+
+Če želimo obravnavati še kraterje, je potrebno prvo izločiti "najstarejši" krater, za keterega smo v prejšnjem poglavju odkrili, da je napaka v podatkovni bazi.
+Namesto, da ga odstranimo iz tabele, lahko najdemo raje naslednji najstarejši krater in tvorimo intervale po 200 milijonov let do njegove starosti.
+Potem vnosom v tabeli pripišemo interval in za konec intervale še preimenujemo, da se pojavijo lepše na grafu.
+"""
+# %%
+real_max = crt_df.drop(crt_df["Age"].idxmax())["Age"].max()
+intervals = pd.interval_range(start=0, end=real_max, freq=2*10**8, closed="left")
+
+col_interval = pd.cut(crt_df["Age"], bins=intervals, include_lowest=True).dropna()
+col_interval_trans = col_interval.apply(lambda i: f"{int(i.left/10**6)} mil.")
+# %% [markdown]
+"""
+Graf števila kraterjev glede na starost:
+"""
+# %%
+col_interval_trans.value_counts().sort_index().plot.bar()
+# %% [markdown]
+"""
+Očitno je, da se skoraj vsi kraterji nahajajo v starostnem razredu do 600 milijonov let.
+To je logično, saj starejše kot so naravne značilnosti, večje so možnosti, da so te do sedaj že izginile.
+"""
+# %% [markdown]
+"""
+#### Povezave z maso meteorita
+Pogledali si bomo še različne povezave med maso meteorita in različnimi faktorji, ki bi nanjo lahko vplivali.
+Sprva si lahko pogledamo graf povprečne mase meteorita skozi leta, da vidimo, če najdemo velika odstopanja od povprečja.
+
+Dobimo ga tako, da sprva tabelo omejimo na časovno obdobje, kjer imamo več vnosov (npr. po 1900) in na podatke, ki nas zanimajo, tj. leto in masa.
+Potem lahko združimo vrstice glede na leto padca in izračunamo povprečno vrednost mase.
+Te podatke potem še pretvorimo v enote, ki nam najbolje pokažejo vrednosti, v tem primeru kilogrami.
+"""
+# %%
+avg_mass_year = met_df[met_df["Year"] > 1900][["Year", "Mass"]].groupby("Year").mean()/10**3
+# %% [markdown]
+"""
+Graf povprečne mase meteorita skozi leta:
+"""
+# %%
+avg_mass_year.plot(legend=False, ylabel="Mean mass [kg]")
+# %% [markdown]
+"""
+Opazimo gromozanske skoke v povprečni masi meteorita.
+Te podatke lahko primerjamo s prej dobljeno tabelo najtežjih meteoritov.
+Opazimo lahko močno korelacijo, saj so leta 1911, 1920 in 1947 hkrati leta z vrhunci povprečne mase in leta, ko je padel eden od desetih najtežjih meteoritov.
+Predvsem odstopa leto 1920, ko je padel drugi največji meteorit in hkrati iz tega leta ni zelo veliko manjših meteoritov, ki bi povprečje znižali.
+
+Naslednje si lahko pogledamo povezavo med maso in tipom meteorita, da vidimo katere vrste meteorita so najtežje.
+
+To storimo podobno kot prej, kjer tabelo meteoritov omejimo na tip in maso in združimo vrstice glede na tip meteorita.
+Iz tega razberemo povprečne vrednosti mas in jih pretvorimo v kilograme.
+Pri risanju pa izberemo samo 20 največjih povprečnih mas, saj imamo tipov meteoritov preveč za en graf.
+"""
+# %%
+avg_mass_type = met_df[["Type", "Mass"]].groupby("Type").mean()/10**3
+# %% [markdown]
+"""
+Graf dvajsetih tipov z največjo povprečno maso na tip:
+"""
+# %%
+avg_mass_type.sort_values("Mass", ascending=False).head(20).plot.bar(legend=False, ylabel="Mean mass [kg]")
+# %% [markdown]
+"""
+Tukaj mogočno prevlada en tip meteorita "Iron, IIIE-an", kateremu z mnogo manjšima povprečnima masama sledita "Iron, IVB" in "Iron, IAB Complex".
+Ostali tipi meteoritov pa v primerjavi s temi skoraj ne obstajajo.
+
+Pogledamo lahko meteorite s temi tremi tipi in odkrijemo zakaj tako močno odstopajo.
+Napišemo pomožno funkcijo, ki vrne tabelo vseh meteoritov nekega tipa, urejeno po masi.
+"""
+# %%
+def get_table_of_type(met_type):
+    return met_df[met_df["Type"] == met_type][["Name", "Type", "Mass"]].sort_values("Mass", ascending=False)
+# %% [markdown]
+"""
+Tabela vseh meteoritov tipa "Iron, IIIE-an" urejena po masi:
+"""
+# %%
+HTML(get_table_of_type("Iron, IIIE-an").to_html(index=False))
+# %% [markdown]
+"""
+Tabela vseh meteoritov tipa "Iron, IVB" urejena po masi:
+"""
+# %%
+HTML(get_table_of_type("Iron, IVB").to_html(index=False))
+# %% [markdown]
+"""
+Tabela vseh meteoritov tipa "Iron, IAB Complex" urejena po masi:
+"""
+# %%
+HTML(get_table_of_type("Iron, IAB Complex").to_html(index=False))
+# %% [markdown]
+"""
+Takoj lahko opazimo zakaj je prišlo do takšnih odstopanj.
+To so tipi najtežjih meteoritov, ki so zelo nepogosti.
+To pomeni, da bo povprečno vrednost bila odvisna večinoma samo od najtežjega meteorita zaradi gromozanske razlike v teži in majhne količine normalno velikih meteoritov.
 """
