@@ -638,7 +638,7 @@ Različna področja smo analizirali tudi tako, da smo iskali povezave med spreme
 Recimo število meteoritov skozi leta, povprečna masa meteorita skozi leta in še več.
 Končali pa smo še z geografsko analizo in prikazom, kjer smo obravnavali število meteoritov na državo in povprečno maso meteorita na državo ter drugo.
 
-Odkrili smo, da je večina meteoritov iz zadnjih 50 let, da je največ meteoritov padlo leta 2000 in desetletja 2000-2010, da je večina kraterjev starih manj kot 600 milijonov let še veliko več.
+Odkrili smo, da je večina meteoritov iz zadnjih 50 let, da je največ meteoritov padlo leta 2000 in desetletja 2000-2010, da je večina kraterjev starih manj kot 600 milijonov let in še veliko več.
 Pri analizi mase pa so nam vedno pred oči skakali podatki v povezavi z najtežjimi meteoriti.
 Recimo leta, ko je bila povprečna masa meteorita največja so bila ravno ta, ko je padel eden izdem najtežjih meteoritov.
 Tip meteorita z najvišjo povprečno maso je bil tip enega izmed najtežjih meteoritov in države z najvišjo povprečno maso meteoritov so bile ravno tiste, v katere je padel eden takih meteoritov.
