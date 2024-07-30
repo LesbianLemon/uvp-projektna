@@ -133,11 +133,11 @@ Tabela desetih najtežjih meteoritov, s krajem in letom padca ter maso:
 pretty_table(top10_mass)
 # %% [markdown]
 """
-Vidimo, da je zgornja polovica tabela tudi več kot dvakrat težja od spodnje, kar pomeni, da so meteoriti takih velikosti zelo redek pojav.
+Vidimo, da je zgornja polovica tabele tudi več kot dvakrat težja od spodnje, kar pomeni, da so meteoriti takih velikosti zelo redek pojav.
 Le štirje presegajo mejo 50 ton.
 Osupljiv je tudi najtežji meteorit, ki tehta približno toliko kot 12 afriških slonov ali 37 dvotonskih avtomobilov.
 
-Vsi našteti meteoriti so torej 2000-krat do 7000-krat težji od povprečnega meteorita.
+Našteti meteoriti so torej 2000-krat do 7000-krat težji od povprečnega meteorita.
 """
 # %% [markdown]
 """
@@ -160,8 +160,8 @@ Tabela desetih najstarejših meteoritov, s krajem in letom padca:
 pretty_table(top10_met_age)
 # %% [markdown]
 """
-Kot bi lahko predvidevali, nam tabela razkrije, da meteoritov iz tisoč ali več let nazaj ni veliko, saj takrat teh dogodkov niso bili sposobni beležiti tako kot danes.
-Vselej pa najdemo kar tri meteorite iz časa pred našim štetjem in kar pet pred letom 1000.
+Kot bi lahko predvidevali, nam tabela razkrije, da meteoritov iz tisoč ali več let nazaj ni veliko, saj takrat teh dogodkov niso bili sposobni beležiti tako dobro kot danes.
+Vselej pa najdemo kar tri meteorite iz časa pred našim štetjem in pet pred letom 1000.
 
 Tabela desetih najstarejših kraterjev, s krajem in starostjo:
 """
@@ -169,7 +169,7 @@ Tabela desetih najstarejših kraterjev, s krajem in starostjo:
 pretty_table(top10_crt_age)
 # %% [markdown]
 """
-V tabeli očitno odstopa "najstarejši" krater med vsemi, saj je starejši od vesolja samega.
+V tabeli očitno odstopa "najstarejši" krater med vsemi, saj je starejši od vesolja samega (po mojem znanju je to nemogoče).
 Potrdimo lahko, da je to napaka v podatkovni bazi in ne v naših programih, saj je starost navedena kot 34759 Ma (Ma = mega-annum) ali 34759 milijonov let.
 
 Sicer pa lahko vidimo, da imamo kraterje, ki dosegajo starosti do polovice starosti Zemlje.
@@ -214,8 +214,8 @@ Tabela desetih let z največ meteoriti:
 pretty_table(top10_years)
 # %% [markdown]
 """
-Vidimo, da število meteoritov narašča skoraj naključno z naključnimi leti.
-Predvidevali bi lahko, da bodo imela poznejša leta več meteoritov zaradi boljših merskih sposobnosti, vendar so leta na seznamu povsem naključna in nobeno od njih ni v zadnjem desetletju.
+Vidimo, da so leta z največ meteoriti naključna.
+Predvidevali bi lahko, da bodo imela poznejša leta več meteoritov zaradi boljših merskih sposobnosti, vendar so leta na seznamu nepovezana in nobeno od njih ni v zadnjem desetletju.
 """
 # %% [markdown]
 """
@@ -271,7 +271,6 @@ Potem vnosom v tabeli pripišemo interval in za konec intervale še preimenujemo
 # %%
 real_max = crt_df.drop(crt_df["Age"].idxmax())["Age"].max()
 intervals = pd.interval_range(start=0, end=real_max, freq=2*10**8, closed="left")
-
 col_interval = pd.cut(crt_df["Age"], bins=intervals, include_lowest=True).dropna()
 col_interval_trans = col_interval.apply(lambda i: f"{int(i.left/10**6)} mil.")
 # %% [markdown]
@@ -293,16 +292,16 @@ Sprva si lahko pogledamo graf povprečne mase meteorita skozi leta, da vidimo, �
 
 Dobimo ga tako, da sprva tabelo omejimo na časovno obdobje, kjer imamo več vnosov (npr. po 1900) in na podatke, ki nas zanimajo, tj. leto in masa.
 Potem lahko združimo vrstice glede na leto padca in izračunamo povprečno vrednost mase.
-Te podatke potem še pretvorimo v enote, ki nam najbolje pokažejo vrednosti, v tem primeru kilogrami.
+Te podatke potem še pretvorimo v enote, ki nam najbolje pokažejo vrednosti, v tem primeru kilograme.
 """
 # %%
-avg_mass_year = met_df[met_df["Year"] > 1900][["Year", "Mass"]].groupby("Year").mean()/10**3
+mean_mass_year = met_df[met_df["Year"] > 1900][["Year", "Mass"]].groupby("Year").mean()/10**3
 # %% [markdown]
 """
 Graf povprečne mase meteorita skozi leta:
 """
 # %%
-avg_mass_year.plot(legend=False, ylabel="Mean mass [kg]");
+mean_mass_year.plot(legend=False, ylabel="Mean mass [kg]");
 # %% [markdown]
 """
 Opazimo gromozanske skoke v povprečni masi meteorita.
@@ -315,7 +314,25 @@ pretty_table(top10_mass)
 # %% [markdown]
 """
 Opazimo lahko močno korelacijo, saj so leta 1911, 1920 in 1947 hkrati leta z vrhunci povprečne mase in leta, ko je padel eden od desetih najtežjih meteoritov.
-Predvsem odstopa leto 1920, ko je padel drugi največji meteorit in hkrati iz tega leta ni zelo veliko manjših meteoritov, ki bi povprečje znižali.
+Predvsem odstopa leto 1920, zato si podrobneje poglejmo meteorite, ki so padli takrat.
+
+Tabelo omejimo na leto 1920 in na stolpce, ki nas zanimajo.
+Potem jo razvrstimo po masi in pretvorimo ter dodamo enote za lepši izgled.
+"""
+# %%
+met_1920_df = met_df[met_df["Year"] == 1920][["Name", "Year", "Mass"]].sort_values("Mass", ascending=False)
+met_1920_df["Mass"] = (met_1920_df["Mass"]/10**3).apply(lambda m: f"{round(m, 1)} kg")
+# %% [markdown]
+"""
+Tabela vseh meteoritov leta 1920, razvrščena po masi:
+"""
+# %%
+pretty_table(met_1920_df)
+# %% [markdown]
+"""
+Vidimo, da je to leto, ko je padel drugi najtežji zabeležen meteorit in hkrati zelo malo drugih, lažjih meteoritov.
+Posledica tega je, da najtežji meteorit zelo močno vpliva na povprečno maso.
+To obrazloži vrh, ki smo ga videli na grafu in je verjetno razlog za vse podobne vrhove.
 
 Naslednje si lahko pogledamo povezavo med maso in tipom meteorita, da vidimo katere vrste meteorita so najtežje.
 
@@ -324,13 +341,13 @@ Iz tega razberemo povprečne vrednosti mas in jih pretvorimo v kilograme.
 Pri risanju pa izberemo samo 20 največjih povprečnih mas, saj imamo tipov meteoritov preveč za en graf.
 """
 # %%
-avg_mass_type = met_df[["Type", "Mass"]].groupby("Type").mean()/10**3
+mean_mass_type = met_df[["Type", "Mass"]].groupby("Type").mean()/10**3
 # %% [markdown]
 """
 Graf dvajsetih tipov z največjo povprečno maso na tip:
 """
 # %%
-avg_mass_type.sort_values("Mass", ascending=False).head(20).plot.bar(legend=False, ylabel="Mean mass [kg]");
+mean_mass_type.sort_values("Mass", ascending=False).head(20).plot.bar(legend=False, ylabel="Mean mass [kg]");
 # %% [markdown]
 """
 Tukaj mogočno prevlada en tip meteorita "Iron, IIIE-an", kateremu z mnogo manjšima povprečnima masama sledita "Iron, IVB" in "Iron, IAB Complex".
@@ -372,18 +389,22 @@ To pomeni, da bo povprečna masa bila odvisna večinoma samo od najtežjega mete
 """
 ## Zemljevidi
 Uporabimo lahko tudi podatke o lokacijah, ki jih imamo shranjene v tabelah.
-Pred tem moramo pa pripraviti okolje za risanje zemljevidov tako kot hočemo.
+Pred tem moramo pa pripraviti okolje za risanje zemljevidov.
 
 Uvozimo zemljevide iz lokalno shranjenih datotek z uporabo geopandas.
 Poskrbeti moramo tudi, da se v novi tabeli meteoritov ne pojavijo vnosi, ki niso na Zemlji, saj ne želimo risati meteoritov na drugih planetih.
-Na koncu to pretvorimo v geopandas tabelo z uporabo "Latitude" in "Longitude" stolpcev.
 """
 # %%
 world_gdf = gpd.read_file("world.zip")
 world_accurate_gdf = gpd.read_file("world-accurate.zip")
 earth_met_df = met_df[(met_df["Place"] != "Mars") & (met_df["Place"] != "Moon")]
-
+# %% [markdown]
+"""
+Na koncu to pretvorimo v geopandas tabelo z uporabo "Latitude" in "Longitude" stolpcev.
+"""
+# %%
 met_gdf = gpd.GeoDataFrame(earth_met_df, geometry=gpd.points_from_xy(earth_met_df["Longitude"], earth_met_df["Latitude"]), crs="EPSG:4326")
+# %%
 crt_gdf = gpd.GeoDataFrame(crt_df, geometry=gpd.points_from_xy(crt_df["Longitude"], crt_df["Latitude"]), crs="EPSG:4326")
 # %% [markdown]
 """
@@ -410,6 +431,9 @@ Zemljevid vseh meteoritov:
 met_gdf.plot(ax=get_world_map(), markersize=0.5);
 # %% [markdown]
 """
+Iz števila pikic bi z lahkoto sklepali na območja z največjim šetvilom padcev meteoritov, vendar kot bomo videli v prihodnje pri analizi glede na državo ta zemljevid ne pove celotne zgodbe.
+Veliko meteoritov na enem območju se z lahkoto skrije pred našimi očmi.
+
 Zemljevid vseh kraterjev:
 """
 # %%
@@ -467,8 +491,17 @@ Zemljevid števila meteoritov na državo:
 draw_map(world_extra_gdf, "Meteorites")
 # %% [markdown]
 """
-Vidimo, da je skoraj cel svet zanemarljiv v primerjavi z Antarktiko, kjer je naštetih več kot 30000 meteoritov.
-Poskusimo narisati še svet brez Antarktike.
+Vidimo, da je v nasprotju z našimi pričakovanji, ki jih je postavil zemljevid vseh meteoritov na svetovnem zemljevidu, skoraj cel svet zanemarljiv v primerjavi z Antarktiko.
+Tam je bilo najdenih več kot 30000 meteoritov, kar je zelo blizu številu vseh meteoritov, ki smo jih dobili z analizo države padca.
+
+Število vseh meteoritov, za katere smo določili državo padca:
+"""
+# %%
+len(met_country_gdf)
+# %% [markdown]
+"""
+Izven Antarktike je po celem svetu le polovica toliko meteoritov kot na Antarktiki sami.
+Zato lahko poskusimo narisati še svet brez Antarktike.
 
 Zemljevid števila meteoritov na državo brez Antarktike:
 """
@@ -522,7 +555,7 @@ pretty_table(top10_countries_crt)
 # %% [markdown]
 """
 Kot je razvidno iz zemljevida so države z največ kraterji Kanada, Združene države Amerike, Avstralija in Rusija.
-Mogoče presenetljivo pa vidimo, da je naslednja Finska, ki je mnogokrat manjša.
+Mogoče presenetljivo pa vidimo, da je naslednja Finska, ki je mnogokrat manjša od prej naštetih držav, a z njimi vseeno konkurira.
 
 Za zaključek pa si poglejmo še povprečno maso meteorita glede na državo padca, da vidimo, če opazimo kakšna odstopanja.
 
@@ -567,8 +600,11 @@ Na koncu pa vsaki državi priredimo svojo tabelo, ki vsebuje samo elemente, ki s
 # %%
 mass_sorted_df = met_country_gdf[["Name", "Country", "Mass"]].sort_values("Mass", ascending=False)
 mass_sorted_df["Mass"] = (mass_sorted_df["Mass"]/10**3).apply(lambda m: f"{round(m, 1)} kg")
+# %%
 somalia_df = mass_sorted_df[mass_sorted_df["Country"] == "Somalia"]
+# %%
 namibia_df = mass_sorted_df[mass_sorted_df["Country"] == "Namibia"]
+# %%
 tanzania_df = mass_sorted_df[mass_sorted_df["Country"] == "United Republic of Tanzania"]
 # %% [markdown]
 """
@@ -592,7 +628,7 @@ pretty_table(tanzania_df)
 """
 Naleteli smo na isto težavo kot pri grafičnih prikazih.
 Močno odstopanje teh treh držav je povzročil padec treh zelo težkih meteoritov, ki se uvrščajo med ene najtežjih na svetu.
-Razlog za to je manjše kot povprečno število meteoritov v teh državah, kar vodi v močno prevladovanje nejtežjih meteoritov pri izračunu povprečne mase.
+Manjše kot povprečno število meteoritov v teh državah pa vodi v močno prevladovanje teh najtežjih meteoritov pri izračunu povprečne mase.
 """
 # %% [markdown]
 """
@@ -602,12 +638,13 @@ Različna področja smo analizirali tudi tako, da smo iskali povezave med spreme
 Recimo število meteoritov skozi leta, povprečna masa meteorita skozi leta in še več.
 Končali pa smo še z geografsko analizo in prikazom, kjer smo obravnavali število meteoritov na državo in povprečno maso meteorita na državo ter drugo.
 
-Odkrili smo, da je večina meteoritov iz zadnjih 50 let, da je največ meteoritov padlo leta 2000 in desetletja 2000-2010, da je večina kraterjev starih manj kot 200 milijonov let še veliko več.
+Odkrili smo, da je večina meteoritov iz zadnjih 50 let, da je največ meteoritov padlo leta 2000 in desetletja 2000-2010, da je večina kraterjev starih manj kot 600 milijonov let še veliko več.
 Pri analizi mase pa so nam vedno pred oči skakali podatki v povezavi z najtežjimi meteoriti.
 Recimo leta, ko je bila povprečna masa meteorita največja so bila ravno ta, ko je padel eden izdem najtežjih meteoritov.
 Tip meteorita z najvišjo povprečno maso je bil tip enega izmed najtežjih meteoritov in države z najvišjo povprečno maso meteoritov so bile ravno tiste, v katere je padel eden takih meteoritov.
 
-Podatki in rezultati so zanimivi, ampak ali so uporabni je pa druga zgodba.
+Podatki in rezultati, ki smo jih dobili so zanimivi, ampak ali so uporabni je pa druga zgodba.
 Med analizo smo odkrili meteorit starejši od vesolja samega, ki je bil posledica napake v podatkovni bazi, zato ne moremo garantirati pravilnosti vseh podatkov.
-Lahko pa rečemo, da je to smešna zanimivost.
+Lahko se še kje skriva napaka takšne vrste, le tokrat malo manj očitna.
+Je pa smešna ideje meteorita, dvakrat starejšega od vesolja, zato je tudi to nekaj vredno.
 """

@@ -255,6 +255,8 @@ def parse_all_pages(scraper: MultiScraper, json_file: JSONFile, csv_file: CSVFil
 
 
 def main() -> None:
+	start_time: float = time.time()
+
 	# get url with proper search options
 	url = get_url(sea=sea, sfor=sfor, valids=valids, stype=stype, lrec=lrec, map=map)
 
@@ -276,6 +278,9 @@ def main() -> None:
 	# change delimiter to semicolon due to many values containing comma
 	csv_file = CSVFile(data_dir, "output", delimiter=";")
 	parse_all_pages(scraper, json_file, csv_file)
+
+	end_time = time.time()
+	print("\n", f"Parsing complete! The entire program ran for {round(end_time - start_time, 5)}s. Stopping...", sep="")
 
 
 if __name__ == "__main__":
