@@ -30,7 +30,7 @@ Knjjižnice za obdelavo podatkov:
 import pandas as pd
 import geopandas as gpd
 
-import matplotlib
+import matplotlib as plt
 # %% [markdown]
 """
 #### Uvoz podatkov
@@ -42,9 +42,16 @@ df.index.names = ["id"]
 # %% [markdown]
 """
 Tabelo vseh podatkov uredimo po imenih po abecedi, kjer zanemarimo prednost velikih črk pred malimi.
+Hkrati pa hočemo stolpec "(Lat,Long)" razdeliti na dva nova stolpca "Latitude" in "Longitude" za lažjo uporabo.
+Potem lahko originalnega izbrišemo in stolpce preuredimo kot hočemo.
 """
 # %%
-df = df.sort_values(by="Name", key=lambda col: col.str.lower())
+df = df.sort_values(by="Name", key=lambda c: c.str.lower())
+clean_ll_df = df["(Lat,Long)"].dropna()
+df[["Latitude", "Longitude"]] = pd.DataFrame(clean_ll_df.to_list(), index=clean_ll_df.index)
+col_order = ["Name", "Abbrev", "Status", "Year", "Type", "Mass", "Place",
+             "Latitude", "Longitude", "Fall", "Antarctic", "MetBull", "Notes"]
+df = df[col_order]
 # %% [markdown]
 """
 Tabela vseh podatkov:
@@ -80,7 +87,16 @@ crt_df = crt_df.rename(columns={ "Year": "Age" })
 Tabela vseh uradno priznanih kraterjev:
 """
 # %%
+pd.set_option("display.max_rows", 20)
 crt_df
+# %% [markdown]
+"""
+#### Lepši izpis
+Napišemo pomožno funkcijo, ki nam polepša izpis nekaterih tabel.
+"""
+# %%
+def pretty_table(table_df):
+    return HTML(table_df.to_html(index=False))
 # %% [markdown]
 """
 ## Deset najboljših
@@ -114,7 +130,7 @@ Povprečen meteorit torej tehta približno 10 kg.
 Tabela desetih najtežjih meteoritov, s krajem in letom padca ter maso:
 """
 # %%
-HTML(top10_mass.to_html(index=False))
+pretty_table(top10_mass)
 # %% [markdown]
 """
 Vidimo, da je zgornja polovica tabela tudi več kot dvakrat težja od spodnje, kar pomeni, da so meteoriti takih velikosti zelo redek pojav.
@@ -141,7 +157,7 @@ top10_crt_age["Age"] = (top10_crt_age["Age"]/10**9).apply(lambda a: f"{round(a, 
 Tabela desetih najstarejših meteoritov, s krajem in letom padca:
 """
 # %%
-HTML(top10_met_age.to_html(index=False))
+pretty_table(top10_met_age)
 # %% [markdown]
 """
 Kot bi lahko predvidevali, nam tabela razkrije, da meteoritov iz tisoč ali več let nazaj ni veliko, saj takrat teh dogodkov niso bili sposobni beležiti tako kot danes.
@@ -150,7 +166,7 @@ Vselej pa najdemo kar tri meteorite iz časa pred našim štetjem in kar pet pre
 Tabela desetih najstarejših kraterjev, s krajem in starostjo:
 """
 # %%
-HTML(top10_crt_age.to_html(index=False))
+pretty_table(top10_crt_age)
 # %% [markdown]
 """
 V tabeli očitno odstopa "najstarejši" krater med vsemi, saj je starejši od vesolja samega.
@@ -179,7 +195,7 @@ Legenda tipov meteoritov, ki so našteti v tabeli (več na: https://en.wikipedia
 Tabela desetih najpogostejših tipov meteoritov:
 """
 # %%
-HTML(top10_types.to_html(index=False))
+pretty_table(top10_types)
 # %% [markdown]
 """
 #### Deset najpogostejših let padca
@@ -195,7 +211,7 @@ top10_years = top10_years.to_frame(name="Amount").reset_index()
 Tabela desetih let z največ meteoriti:
 """
 # %%
-HTML(top10_years.to_html(index=False))
+pretty_table(top10_years)
 # %% [markdown]
 """
 Vidimo, da število meteoritov narašča skoraj naključno z naključnimi leti.
@@ -225,7 +241,7 @@ def get_met_counts_min_year(min_year, decades=False):
 Graf števila padlih meteoritov v desetletju od leta 1700 dalje:
 """
 # %%
-get_met_counts_min_year(1800, decades=True).plot.bar(xlabel="Decade", ylabel="Amount")
+get_met_counts_min_year(1800, decades=True).plot.bar(xlabel="Decade", ylabel="Amount");
 # %% [markdown]
 """
 Očitno je, da so skoraj vsi meteoriti v podatkovni bazi iz zadnjih 50 let, zato moramo časovno obdobje skrajšati, da dobimo boljšo predstavo.
@@ -233,13 +249,13 @@ Očitno je, da so skoraj vsi meteoriti v podatkovni bazi iz zadnjih 50 let, zato
 Graf števila padlih meteoritov v desetletju od leta 1950 dalje:
 """
 # %%
-get_met_counts_min_year(1950, decades=True).plot.bar(xlabel="Decade", ylabel="Amount")
+get_met_counts_min_year(1950, decades=True).plot.bar(xlabel="Decade", ylabel="Amount");
 # %% [markdown]
 """
 Graf števila padlih meteoritov v letu od leta 1950 dalje:
 """
 # %%
-get_met_counts_min_year(1950, decades=False).plot(ylabel="Amount")
+get_met_counts_min_year(1950, decades=False).plot(ylabel="Amount");
 # %% [markdown]
 """
 Podatki delujejo zelo naključni, z zelo velikimi skoki in padci iz leta v leto.
@@ -263,7 +279,7 @@ col_interval_trans = col_interval.apply(lambda i: f"{int(i.left/10**6)} mil.")
 Graf števila kraterjev glede na starost:
 """
 # %%
-col_interval_trans.value_counts().sort_index().plot.bar()
+col_interval_trans.value_counts().sort_index().plot.bar();
 # %% [markdown]
 """
 Očitno je, da se skoraj vsi kraterji nahajajo v starostnem razredu do 600 milijonov let.
@@ -286,11 +302,18 @@ avg_mass_year = met_df[met_df["Year"] > 1900][["Year", "Mass"]].groupby("Year").
 Graf povprečne mase meteorita skozi leta:
 """
 # %%
-avg_mass_year.plot(legend=False, ylabel="Mean mass [kg]")
+avg_mass_year.plot(legend=False, ylabel="Mean mass [kg]");
 # %% [markdown]
 """
 Opazimo gromozanske skoke v povprečni masi meteorita.
 Te podatke lahko primerjamo s prej dobljeno tabelo najtežjih meteoritov.
+
+Tabela desetih najtežjih meteoritov za primerjavo:
+"""
+# %%
+pretty_table(top10_mass)
+# %% [markdown]
+"""
 Opazimo lahko močno korelacijo, saj so leta 1911, 1920 in 1947 hkrati leta z vrhunci povprečne mase in leta, ko je padel eden od desetih najtežjih meteoritov.
 Predvsem odstopa leto 1920, ko je padel drugi največji meteorit in hkrati iz tega leta ni zelo veliko manjših meteoritov, ki bi povprečje znižali.
 
@@ -307,39 +330,284 @@ avg_mass_type = met_df[["Type", "Mass"]].groupby("Type").mean()/10**3
 Graf dvajsetih tipov z največjo povprečno maso na tip:
 """
 # %%
-avg_mass_type.sort_values("Mass", ascending=False).head(20).plot.bar(legend=False, ylabel="Mean mass [kg]")
+avg_mass_type.sort_values("Mass", ascending=False).head(20).plot.bar(legend=False, ylabel="Mean mass [kg]");
 # %% [markdown]
 """
 Tukaj mogočno prevlada en tip meteorita "Iron, IIIE-an", kateremu z mnogo manjšima povprečnima masama sledita "Iron, IVB" in "Iron, IAB Complex".
 Ostali tipi meteoritov pa v primerjavi s temi skoraj ne obstajajo.
 
 Pogledamo lahko meteorite s temi tremi tipi in odkrijemo zakaj tako močno odstopajo.
-Napišemo pomožno funkcijo, ki vrne tabelo vseh meteoritov nekega tipa, urejeno po masi.
+Napišemo pomožno funkcijo, ki vrne tabelo vseh meteoritov nekega tipa, urejeno po masi in zapisano v kilogramih.
 """
 # %%
 def get_table_of_type(met_type):
-    return met_df[met_df["Type"] == met_type][["Name", "Type", "Mass"]].sort_values("Mass", ascending=False)
+    met_type_df = met_df[met_df["Type"] == met_type][["Name", "Type", "Mass"]].sort_values("Mass", ascending=False)
+    met_type_df["Mass"] = (met_type_df["Mass"]/10**3).apply(lambda m: f"{round(m, 2)} kg")
+    return met_type_df
 # %% [markdown]
 """
 Tabela vseh meteoritov tipa "Iron, IIIE-an" urejena po masi:
 """
 # %%
-HTML(get_table_of_type("Iron, IIIE-an").to_html(index=False))
+pretty_table(get_table_of_type("Iron, IIIE-an"))
 # %% [markdown]
 """
 Tabela vseh meteoritov tipa "Iron, IVB" urejena po masi:
 """
 # %%
-HTML(get_table_of_type("Iron, IVB").to_html(index=False))
+pretty_table(get_table_of_type("Iron, IVB"))
 # %% [markdown]
 """
 Tabela vseh meteoritov tipa "Iron, IAB Complex" urejena po masi:
 """
 # %%
-HTML(get_table_of_type("Iron, IAB Complex").to_html(index=False))
+pretty_table(get_table_of_type("Iron, IAB Complex"))
 # %% [markdown]
 """
 Takoj lahko opazimo zakaj je prišlo do takšnih odstopanj.
 To so tipi najtežjih meteoritov, ki so zelo nepogosti.
-To pomeni, da bo povprečno vrednost bila odvisna večinoma samo od najtežjega meteorita zaradi gromozanske razlike v teži in majhne količine normalno velikih meteoritov.
+To pomeni, da bo povprečna masa bila odvisna večinoma samo od najtežjega meteorita zaradi gromozanske razlike v teži in majhne količine normalno velikih meteoritov.
+"""
+# %% [markdown]
+"""
+## Zemljevidi
+Uporabimo lahko tudi podatke o lokacijah, ki jih imamo shranjene v tabelah.
+Pred tem moramo pa pripraviti okolje za risanje zemljevidov tako kot hočemo.
+
+Uvozimo zemljevide iz lokalno shranjenih datotek z uporabo geopandas.
+Poskrbeti moramo tudi, da se v novi tabeli meteoritov ne pojavijo vnosi, ki niso na Zemlji, saj ne želimo risati meteoritov na drugih planetih.
+Na koncu to pretvorimo v geopandas tabelo z uporabo "Latitude" in "Longitude" stolpcev.
+"""
+# %%
+world_gdf = gpd.read_file("world.zip")
+world_accurate_gdf = gpd.read_file("world-accurate.zip")
+earth_met_df = met_df[(met_df["Place"] != "Mars") & (met_df["Place"] != "Moon")]
+
+met_gdf = gpd.GeoDataFrame(earth_met_df, geometry=gpd.points_from_xy(earth_met_df["Longitude"], earth_met_df["Latitude"]), crs="EPSG:4326")
+crt_gdf = gpd.GeoDataFrame(crt_df, geometry=gpd.points_from_xy(crt_df["Longitude"], crt_df["Latitude"]), crs="EPSG:4326")
+# %% [markdown]
+"""
+Za začetek naredimo pomožne funkcije, ki nam bodo olajšale delo pri risanju zemljevidov.
+Eno funkcijo, ki doda opis osi in drugo, ki nariše zemljevid sveta, na katerega bomo potem vrisali podatke.
+"""
+# %%
+def set_labels(ax):
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+# %%
+def get_world_map():
+    ax = world_gdf.plot(color="white", edgecolor="black")
+    set_labels(ax)
+    return ax
+# %% [markdown]
+"""
+#### Vsi meteoriti in kraterji
+Prvo si bomo pogledali kako izgledajo naši padci meteoritov in kraterji na svetovnem zemljevidu.
+
+Zemljevid vseh meteoritov:
+"""
+# %%
+met_gdf.plot(ax=get_world_map(), markersize=0.5);
+# %% [markdown]
+"""
+Zemljevid vseh kraterjev:
+"""
+# %%
+crt_gdf.plot(ax=get_world_map(), markersize=3);
+# %% [markdown]
+"""
+Pri obeh zemljevidih lahko opazimo, da je največja gostota ravno na najbolje poseljenih območjih sveta.
+Severna območja kot so Kanada, Grenlandija, Sibirija in težko dostopna območja kot so džungle in puščave pa so bolj prazna.
+"""
+# %% [markdown]
+"""
+#### Glede na državo
+Poskusimo lahko podatke narisati tudi glede na državo padca.
+Za to bomo potrebovali vedeti kam je meteorit padel oziroma kje se krater nahaja.
+
+Zaradi nekonstantnosti stolpca "Place", iz tega ne moremo dobiti države padca.
+Lahko pa točke padcev presekamo z natančnim zemljevidom sveta, da ugotovimo v katero državo je padel.
+S tem bomo dobili novo tabelo samo kraterjev in meteoritov, ki so pristali na kopnem v državi, skupaj z državo kjer so pristali.
+Na žalost pa so te operacije za velike količine podatkov zelo počasne, vendar se za točnost podatkov splača potrpeti.
+"""
+# %%
+met_country_gdf = gpd.overlay(met_gdf, world_accurate_gdf, how="intersection")
+met_country_gdf = met_country_gdf.rename(columns={ "ADMIN": "Country" })
+# %%
+crt_country_gdf = gpd.overlay(crt_gdf, world_accurate_gdf, how="intersection")
+crt_country_gdf = crt_country_gdf.rename(columns={ "ADMIN": "Country" })
+# %% [markdown]
+"""
+Sedaj lahko naredimo novo tabelo z istimi podatki kot tabela vseh držav, le z dodanima stolpcema števila meteoritov in kraterjev.
+"""
+# %%
+world_extra_gdf = world_gdf.set_index("admin")
+world_extra_gdf["Meteorites"] = met_country_gdf["Country"].value_counts()
+world_extra_gdf["Craters"] = crt_country_gdf["Country"].value_counts()
+world_extra_gdf = world_extra_gdf.reset_index(names="Country")
+# %% [markdown]
+"""
+Napišemo pomožno funkcijo, da nam ni potrebno vsakič dajati istih parametrov:
+"""
+# %%
+def draw_map(gdf, column):
+    set_labels(gdf.plot(
+        column=column,
+        legend=True,
+        legend_kwds={ "orientation": "horizontal" },
+        missing_kwds={
+            "color": "lightgrey",
+        }
+    ))
+# %% [markdown]
+"""
+Zemljevid števila meteoritov na državo:
+"""
+# %%
+draw_map(world_extra_gdf, "Meteorites")
+# %% [markdown]
+"""
+Vidimo, da je skoraj cel svet zanemarljiv v primerjavi z Antarktiko, kjer je naštetih več kot 30000 meteoritov.
+Poskusimo narisati še svet brez Antarktike.
+
+Zemljevid števila meteoritov na državo brez Antarktike:
+"""
+# %%
+draw_map(world_extra_gdf[world_extra_gdf["Country"] != "Antarctica"], "Meteorites")
+# %% [markdown]
+"""
+Tudi brez Antarktike prevladuje zelo majhno število držav.
+Poglejmo si katere države to so.
+
+Izberemo stolpce, ki jih želimo prikazati in jih razvrstimo po številu meteoritov.
+Vzamemo vrhnjih deset držav in na koncu še zapišemo števila meteoritov kot cela števila.
+"""
+# %%
+top10_countries_met = world_extra_gdf[["Country", "Meteorites"]].sort_values("Meteorites", ascending=False).head(10)
+top10_countries_met = top10_countries_met.astype({ "Meteorites": int })
+# %% [markdown]
+"""
+Tabela desetih držav z največ meteoriti:
+"""
+# %%
+pretty_table(top10_countries_met)
+# %% [markdown]
+"""
+Tabela in zemljevid nam potrdita, da je največ meteoritov zapisanih kot padlih na Antarktiki.
+Sledijo Oman, Čile, Združene države Amerike in Libija.
+Vse ostale države pa imajo pod 1000 meteoritov.
+
+Poglejmo si še kako izgleda zemljevid kraterjev.
+
+Zemljevid števila kraterjev na državo:
+"""
+# %%
+draw_map(world_extra_gdf, "Craters")
+# %% [markdown]
+"""
+Tukaj je bolj očitno katere države prevladujejo, vendar lahko vseeno pogledamo tabelo desetih držav z največ kraterji.
+
+Izberemo stolpce, ki jih želimo prikazati in jih razvrstimo po številu kraterjev.
+Vzamemo vrhnjih deset držav in na koncu še zapišemo števila kraterjev kot cela števila.
+"""
+# %%
+top10_countries_crt = world_extra_gdf[["Country", "Craters"]].sort_values("Craters", ascending=False).head(10)
+top10_countries_crt = top10_countries_crt.astype({ "Craters": int })
+# %% [markdown]
+"""
+Tabela desetih držav z največ meteoriti:
+"""
+# %%
+pretty_table(top10_countries_crt)
+# %% [markdown]
+"""
+Kot je razvidno iz zemljevida so države z največ kraterji Kanada, Združene države Amerike, Avstralija in Rusija.
+Mogoče presenetljivo pa vidimo, da je naslednja Finska, ki je mnogokrat manjša.
+
+Za zaključek pa si poglejmo še povprečno maso meteorita glede na državo padca, da vidimo, če opazimo kakšna odstopanja.
+
+Tabeli držav dodamo stolpec povprečne mase meteorita.
+"""
+# %%
+world_extra_gdf = world_extra_gdf.set_index("Country")
+world_extra_gdf["Mean meteorite mass"] = met_country_gdf[["Country", "Mass"]].groupby("Country").mean()/10**3
+world_extra_gdf = world_extra_gdf.reset_index()
+# %% [markdown]
+"""
+Zemljevid povprečne mase meteorita na državo v kg:
+"""
+# %%
+draw_map(world_extra_gdf, "Mean meteorite mass")
+# %% [markdown]
+"""
+Že takoj vidimo, da so močna odstopanja, zato si poglejmo še tabelo desetih najvišjih vrednosti.
+
+Izberemo stolpce, ki jih želimo prikazati in jih razvrstimo po povprečni masi meteorita.
+Vzamemo vrhnjih deset držav in na koncu še zapišemo povprečno maso meteorita v lepšem formatu, z enoto.
+"""
+# %%
+top10_countries_mass = world_extra_gdf[["Country", "Mean meteorite mass"]].sort_values("Mean meteorite mass", ascending=False).head(10)
+top10_countries_mass["Mean meteorite mass"] = top10_countries_mass["Mean meteorite mass"].apply(lambda m: f"{round(m, 1)} kg")
+# %% [markdown]
+"""
+Tabela desetih držav z najvišjo povprečno maso meteorita:
+"""
+# %%
+pretty_table(top10_countries_mass)
+# %% [markdown]
+"""
+Imamo tri države, ki močno prevladujejo nad ostalimi.
+To so Somalija, Namibija in Tanzanija.
+Pogledamo si lahko tabele meteoritov, ki so padli na ozemlje teh držav, da bomo lažje ugotovili zakaj točno te prevladujejo.
+
+Naredimo novo tabelo z stolpci, ki jih hočemo prikazati in že na začetku razvrstimo po masi.
+Potem stolpec mase polepšamo s pretvorbo enot in dodatkom enote.
+Na koncu pa vsaki državi priredimo svojo tabelo, ki vsebuje samo elemente, ki so iz te države.
+"""
+# %%
+mass_sorted_df = met_country_gdf[["Name", "Country", "Mass"]].sort_values("Mass", ascending=False)
+mass_sorted_df["Mass"] = (mass_sorted_df["Mass"]/10**3).apply(lambda m: f"{round(m, 1)} kg")
+somalia_df = mass_sorted_df[mass_sorted_df["Country"] == "Somalia"]
+namibia_df = mass_sorted_df[mass_sorted_df["Country"] == "Namibia"]
+tanzania_df = mass_sorted_df[mass_sorted_df["Country"] == "United Republic of Tanzania"]
+# %% [markdown]
+"""
+Tabela vseh meteoritov Somalije, urejena po masi:
+"""
+# %%
+pretty_table(somalia_df)
+# %% [markdown]
+"""
+Tabela desetih najtežjih meteoritov Namibije, urejena po masi:
+"""
+# %%
+pretty_table(namibia_df.head(10))
+# %% [markdown]
+"""
+Tabela vseh meteoritov Tanzanije, urejena po masi:
+"""
+# %%
+pretty_table(tanzania_df)
+# %% [markdown]
+"""
+Naleteli smo na isto težavo kot pri grafičnih prikazih.
+Močno odstopanje teh treh držav je povzročil padec treh zelo težkih meteoritov, ki se uvrščajo med ene najtežjih na svetu.
+Razlog za to je manjše kot povprečno število meteoritov v teh državah, kar vodi v močno prevladovanje nejtežjih meteoritov pri izračunu povprečne mase.
+"""
+# %% [markdown]
+"""
+## Zaključek
+Videli smo torej različne zanimivosti o meteoritih in kraterjih kot so najtežji, najstarejši in najpogostejši meteoriti in kraterji.
+Različna področja smo analizirali tudi tako, da smo iskali povezave med spremenljivkami.
+Recimo število meteoritov skozi leta, povprečna masa meteorita skozi leta in še več.
+Končali pa smo še z geografsko analizo in prikazom, kjer smo obravnavali število meteoritov na državo in povprečno maso meteorita na državo ter drugo.
+
+Odkrili smo, da je večina meteoritov iz zadnjih 50 let, da je največ meteoritov padlo leta 2000 in desetletja 2000-2010, da je večina kraterjev starih manj kot 200 milijonov let še veliko več.
+Pri analizi mase pa so nam vedno pred oči skakali podatki v povezavi z najtežjimi meteoriti.
+Recimo leta, ko je bila povprečna masa meteorita največja so bila ravno ta, ko je padel eden izdem najtežjih meteoritov.
+Tip meteorita z najvišjo povprečno maso je bil tip enega izmed najtežjih meteoritov in države z najvišjo povprečno maso meteoritov so bile ravno tiste, v katere je padel eden takih meteoritov.
+
+Podatki in rezultati so zanimivi, ampak ali so uporabni je pa druga zgodba.
+Med analizo smo odkrili meteorit starejši od vesolja samega, ki je bil posledica napake v podatkovni bazi, zato ne moremo garantirati pravilnosti vseh podatkov.
+Lahko pa rečemo, da je to smešna zanimivost.
 """
