@@ -175,7 +175,7 @@ class MultiScraper:
         self.scrapers = {}
 
 
-    def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False) -> None:
+    def init_scrapers(self, save_dir: Directory, threads: int, force: bool=False, clear: bool=False) -> None:
         """
         Create and initialise all the scrapes for the provided pages.
         This constructs the required PageScraper objects and saves them into `class.scrapers`, then performs a multithreaded HTML file save.
@@ -188,7 +188,12 @@ class MultiScraper:
             | number of threads to be used during the multithreaded saving process
         force : bool, default=`False`
             | whether to force over-writing exsisting files when initiating scrapers
+        clear : bool, default=`False`
+            | whether to clear `save_dir` before initialising (WARNING: THIS DELETES EVERYTHING)
         """
+
+        if clear:
+            save_dir.cleardir()
 
         with cf.ThreadPoolExecutor(max_workers=threads) as executor:
             name: str

@@ -10,14 +10,29 @@ from utils.datafiles import Directory, File, CSVFile, JSONFile
 from typing import Callable # typing for functions
 
 
+# command-line argument setup
+parser: argparse.ArgumentParser = argparse.ArgumentParser()
+parser.add_argument("--thread-count", "-c", help="number of threads used for saving the HTML files", type=int, default=8, dest="threads")
+parser.add_argument("--no-force", help="will not download HTML files again if they already exist", action="store_false", dest="force")
+parser.add_argument("--clear", help="will clear the entire `data/html/` directory before downloading", action="store_true")
+
+parser.add_argument("--search", "-s", help="the string to use for search the database", type=str, default="*", dest="sea")
+parser.add_argument("--search-for", "-f", help="what to search for with the search string", choices=["names", "text", "places", "classes", "years"], default="names", dest= "sfor")
+parser.add_argument("--valids", "-v", help="restrict search to only valid meteorites", action="store_const", const="yes", default="")
+parser.add_argument("--search-type", "-t", help="what type of search to perform", choices=["contains", "starts", "exact", "sounds"], default="contains", dest="stype")
+parser.add_argument("--listings", "-l", help="number of listings per page", type=str, default="5000", dest="lrec")
+parser.add_argument("--map", "-m", help="type of location data to return", choices=["gg", "ge", "ww", "ll", "dm", "none"], default="ll")
+args: argparse.Namespace = parser.parse_args()
+
+
 #===================GLOBAL VARIABLES====================#
 # see `get_url()` function for info on valid options
-sea: str = "%2A" # sea - search string (%2A = *)
-sfor: str = "names" # sfor - search for
-valids: str = "" # valids - disable search for only valid meteorites
-stype: str = "contains" # stype - type of search
-lrec: str = "5000" # lrec - meteorites per page
-map: str = "ll" # map - display decimal degrees location
+sea: str = args.sea # sea - search string
+sfor: str = args.sfor # sfor - search for
+valids: str = args.valids # valids - disable search for only valid meteorites
+stype: str = args.stype # stype - type of search
+lrec: str = args.lrec # lrec - meteorites per page
+map: str = args.map # map - display decimal degrees location
 
 # Example URL: https://www.lpi.usra.edu/meteor/metbull.php?sea=%2A&sfor=names&ants=&nwas=&falls=&valids=yes&stype=contains&lrec=50&map=ll&browse=&country=All&srt=name&categ=All&mblist=All&rect=&phot=&strewn=&snew=0&pnt=Normal%20table&dr=&page=1
 # website URL with preset search options
@@ -40,13 +55,6 @@ html_data_dir: Directory = Directory("data/html/")
 #=======================================================#
 
 
-# command-line argument setup
-parser: argparse.ArgumentParser = argparse.ArgumentParser()
-parser.add_argument("--threads", "-t", help="number of threads used for saving the HTML files", type=int, default=8)
-parser.add_argument("--no-force", help="will not download HTML files again if they already exist", action="store_false", dest="force")
-args: argparse.Namespace = parser.parse_args()
-
-
 # mypy type checking requires use of --enable-incomplete-feature=NewGenericSyntax
 # custom types used later on to shorten typing annotations - REQUIRES PYTHON 3.12+!!!
 type MeteoriteValue = str | int | float | tuple[float, float]
@@ -61,7 +69,7 @@ def get_url(**kwargs) -> str:
         "sfor": lambda s: s in ["names", "text", "places", "classes", "years"],
         "valids": lambda s: s in ["yes", ""],
         "stype": lambda s: s in ["contains", "starts", "exact", "sounds"],
-        "lrec": lambda s: type(s) is str and s.isnumeric(), # lrec can be any number positive number represented as a string
+        "lrec": lambda s: type(s) is str and s.isnumeric(), # lrec can be any positive number represented as a string
         "map": lambda s: s in ["gg", "ge", "ww", "ll", "dm", "none"]
     }
     url: str = homepage_url
@@ -105,7 +113,7 @@ def download_pages(scraper: MultiScraper) -> None:
     start_time: float = time.time()
 
     # initialise the scrapers (download HTML files)
-    scraper.init_scrapers(html_data_dir, args.threads, force=args.force)
+    scraper.init_scrapers(html_data_dir, args.threads, force=args.force, clear=args.clear)
 
     end_time: float = time.time()
 
