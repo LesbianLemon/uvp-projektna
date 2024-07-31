@@ -108,6 +108,6 @@ python main.py -c 8 -s * -f names -t contains -l 5000 -m ll
 ```
 oziroma
 ```console
-python main.py -c 8 -s * -f names -t contains -l 5000 -m ll
+python3 main.py -c 8 -s * -f names -t contains -l 5000 -m ll
 ```
 Za več informacij kako delajo te nastavitve si poglejte spletno stran [Mednarodnega društva za meteorite in planetarno znanost](https://www.lpi.usra.edu/meteor/metbull.php).
