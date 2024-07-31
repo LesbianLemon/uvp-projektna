@@ -8,461 +8,461 @@ from io import TextIOWrapper
 
 # hack: inherit from string to allow using this class instead of path represented as string
 class Directory(str):
-	def __new__(cls, dir_path: str=".") -> "Directory": # have to use "Directory" since cannot use the class itself inside its definition
-		"""
-		Directory constructor.
-		Creates the directory if it does not exist.
+    def __new__(cls, dir_path: str=".") -> "Directory": # have to use "Directory" since cannot use the class itself inside its definition
+        """
+        Directory constructor.
+        Creates the directory if it does not exist.
 
-		Parameters
-		----------
-		dir_path : str, default="."
-			| path to the directory
-		"""
+        Parameters
+        ----------
+        dir_path : str, default="."
+            | path to the directory
+        """
 
-		if not os.path.isdir(dir_path):
-			os.makedirs(dir_path, exist_ok=True)
-		return super().__new__(cls, dir_path)
-
-
-	def listdir(self) -> list[str]:
-		"""
-		Gets a list of everything in the directory and returns it as a list of strings.
-
-		Returns
-		-------
-		list[str]
-			| list of files and subdirectories in the directory
-		"""
-
-		return os.listdir(self)
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        return super().__new__(cls, dir_path)
 
 
-	def listfiles(self) -> list[str]:
-		"""
-		Gets a list of only the files in the directory and returns it as a list of strings.
+    def listdir(self) -> list[str]:
+        """
+        Gets a list of everything in the directory and returns it as a list of strings.
 
-		Returns
-		-------
-			| list of files in the directory
-		"""
+        Returns
+        -------
+        list[str]
+            | list of files and subdirectories in the directory
+        """
 
-		return list(filter(os.path.isfile, self.listdir()))
-
-
-	def clear(self, paths: list[str]) -> None:
-		"""
-		Deletes those entires in `paths` that exist.
-
-		Parameters
-		----------
-		paths : list[str]
-			| list of paths to items to be deleted
-		"""
-
-		path: str
-		for path in paths:
-			if os.path.exists(path):
-				os.remove(path)
+        return os.listdir(self)
 
 
-	def cleardir(self) -> None:
-		"""
-		Deletes everything in the directory.
-		"""
+    def listfiles(self) -> list[str]:
+        """
+        Gets a list of only the files in the directory and returns it as a list of strings.
 
-		self.clear([os.path.join(self, path) for path in self.listdir()])
+        Returns
+        -------
+            | list of files in the directory
+        """
+
+        return list(filter(os.path.isfile, self.listdir()))
 
 
-	def clearfiles(self) -> None:
-		"""
-		Deletes all the files in the directory.
-		"""
+    def clear(self, paths: list[str]) -> None:
+        """
+        Deletes those entires in `paths` that exist.
 
-		self.clear([os.path.join(self, path) for path in self.listfiles()])
+        Parameters
+        ----------
+        paths : list[str]
+            | list of paths to items to be deleted
+        """
+
+        path: str
+        for path in paths:
+            if os.path.exists(path):
+                os.remove(path)
+
+
+    def cleardir(self) -> None:
+        """
+        Deletes everything in the directory.
+        """
+
+        self.clear([os.path.join(self, path) for path in self.listdir()])
+
+
+    def clearfiles(self) -> None:
+        """
+        Deletes all the files in the directory.
+        """
+
+        self.clear([os.path.join(self, path) for path in self.listfiles()])
 
 
 class File:
-	dir: Directory
-	filename: str
+    dir: Directory
+    filename: str
 
-	_path: str
+    _path: str
 
-	def __init__(self, dir: Directory, filename: str) -> None:
-		"""
-		File initialiser.
+    def __init__(self, dir: Directory, filename: str) -> None:
+        """
+        File initialiser.
 
-		Parameters
-		----------
-		dir : Directory
-			| a Directory type representing where the file will be stored
-		filename : str
-			| name of the file
-		"""
+        Parameters
+        ----------
+        dir : Directory
+            | a Directory type representing where the file will be stored
+        filename : str
+            | name of the file
+        """
 
-		self.dir = dir
-		self.filename = filename
+        self.dir = dir
+        self.filename = filename
 
-		self._path = os.path.join(dir, filename)
-
-
-	def __str__(self) -> str:
-		return f"<File path={self._path}>"
+        self._path = os.path.join(dir, filename)
 
 
-	def exists(self) -> bool:
-		"""
-		Checks if the file the instance is representing exists.
-
-		Returns
-		-------
-		bool
-			| `True` if it exists otherwise `False`
-		"""
-
-		return os.path.exists(self._path)
+    def __str__(self) -> str:
+        return f"<File path={self._path}>"
 
 
-	def write(self, writer: Callable[[TextIOWrapper], None], force: bool=False) -> None:
-		"""
-		Tries writing to file using `writer`.
-		Does not over-write files unless `force` is set to `True` and removes the file if an error occured while writing.
+    def exists(self) -> bool:
+        """
+        Checks if the file the instance is representing exists.
 
-		Parameters
-		----------
-		writer : Callable[[TextIOWrapper], None]
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
-		force : bool, default=`False`
-			| whether to force over-writing the file
-		"""
+        Returns
+        -------
+        bool
+            | `True` if it exists otherwise `False`
+        """
 
-		if not self.exists() or force:
-			with open(self._path, "w", encoding="utf-8") as file:
-				writer(file)
+        return os.path.exists(self._path)
 
 
-	def read(self, reader: Callable[[TextIOWrapper], Any]) -> Any:
-		"""
-		Tries reading the file using `reader`.
+    def write(self, writer: Callable[[TextIOWrapper], None], force: bool=False) -> None:
+        """
+        Tries writing to file using `writer`.
+        Does not over-write files unless `force` is set to `True` and removes the file if an error occured while writing.
 
-		Parameters
-		----------
-		reader : Callable[[TextIOWrapper], Any]
-			| a callable object to be executed when file is opened, the output of which will then be returned
+        Parameters
+        ----------
+        writer : Callable[[TextIOWrapper], None]
+            | a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+        force : bool, default=`False`
+            | whether to force over-writing the file
+        """
 
-		Returns
-		-------
-		Any
-			| output of `reader`
-
-		Raises
-		------
-		RuntimeError
-			| when trying to read a non-existent file
-		"""
-
-		if not self.exists():
-			raise RuntimeError("File cannot be read, as it does not exist")
-
-		with open(self._path, "r", encoding="utf-8") as file:
-			return reader(file)
+        if not self.exists() or force:
+            with open(self._path, "w", encoding="utf-8") as file:
+                writer(file)
 
 
-	def remove(self) -> None:
-		"""
-		Delete the file if it exists.
-		"""
+    def read(self, reader: Callable[[TextIOWrapper], Any]) -> Any:
+        """
+        Tries reading the file using `reader`.
 
-		if self.exists():
-			os.remove(self._path)
+        Parameters
+        ----------
+        reader : Callable[[TextIOWrapper], Any]
+            | a callable object to be executed when file is opened, the output of which will then be returned
+
+        Returns
+        -------
+        Any
+            | output of `reader`
+
+        Raises
+        ------
+        RuntimeError
+            | when trying to read a non-existent file
+        """
+
+        if not self.exists():
+            raise RuntimeError("File cannot be read, as it does not exist")
+
+        with open(self._path, "r", encoding="utf-8") as file:
+            return reader(file)
+
+
+    def remove(self) -> None:
+        """
+        Delete the file if it exists.
+        """
+
+        if self.exists():
+            os.remove(self._path)
 
 
 class HTMLFile(File):
-	def __init__(self, dir: Directory, filename: str) -> None:
-		"""
-		HTMLFile initialiser.
+    def __init__(self, dir: Directory, filename: str) -> None:
+        """
+        HTMLFile initialiser.
 
-		Parameters
-		----------
-		dir : Directory
-			| a Directory type representing where the file will be stored
-		filename : str
-			| name of the file without '.html'
-		"""
+        Parameters
+        ----------
+        dir : Directory
+            | a Directory type representing where the file will be stored
+        filename : str
+            | name of the file without '.html'
+        """
 
-		super().__init__(dir, filename + ".html")
-
-
-	def __str__(self) -> str:
-		return f"<HTMLFile path={self._path}>"
+        super().__init__(dir, filename + ".html")
 
 
-	def write_html(
-		self,
-		html: str,
-		force: bool=False,
-		writer: Callable[[TextIOWrapper], None] | None=None
-	) -> None: # break arguments into seperate lines to avoid line being to long
-		"""
-		Writes the given HTML to the file.
-		Does not over-write unless `force` is set to `True`.
-		If a custom `writer` is supplied, `html` is ignored and only `writer` is executed.
-
-		Parameters
-		----------
-		html : str
-			| HTML code to write
-		force : bool, default=`False`
-			| whether to force over-writing the file
-		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
-		"""
-
-		if writer is None:
-			def custom_writer(file: TextIOWrapper) -> None:
-				file.write(html)
-			writer = custom_writer
-
-		self.write(writer, force=force)
+    def __str__(self) -> str:
+        return f"<HTMLFile path={self._path}>"
 
 
-	def read_html(self, reader: Callable[[TextIOWrapper], Any] | None=None) -> Any:
-		"""
-		Reads the contents of the HTML file.
-		If a custom `reader` is supplied, returns the result of that instead.
+    def write_html(
+        self,
+        html: str,
+        force: bool=False,
+        writer: Callable[[TextIOWrapper], None] | None=None
+    ) -> None: # break arguments into seperate lines to avoid line being to long
+        """
+        Writes the given HTML to the file.
+        Does not over-write unless `force` is set to `True`.
+        If a custom `writer` is supplied, `html` is ignored and only `writer` is executed.
 
-		Parameters
-		----------
-		reader : Callable[[TextIOWrapper], Any], optional
-			| a callable object to be executed when file is opened, the output of which will then be returned
+        Parameters
+        ----------
+        html : str
+            | HTML code to write
+        force : bool, default=`False`
+            | whether to force over-writing the file
+        writer : Callable[[TextIOWrapper], None], optional
+            | a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+        """
 
-		Returns
-		-------
-		Any
-			| output of `reader` or HTML code as string if no `reader` is supplied
+        if writer is None:
+            def custom_writer(file: TextIOWrapper) -> None:
+                file.write(html)
+            writer = custom_writer
 
-		Raises
-		------
-		RuntimeError
-			| when trying to read a non-existent file
-		"""
+        self.write(writer, force=force)
 
-		if reader is None:
-			def custom_reader(file: TextIOWrapper) -> str:
-				return file.read()
-			reader = custom_reader
 
-		return self.read(reader)
+    def read_html(self, reader: Callable[[TextIOWrapper], Any] | None=None) -> Any:
+        """
+        Reads the contents of the HTML file.
+        If a custom `reader` is supplied, returns the result of that instead.
+
+        Parameters
+        ----------
+        reader : Callable[[TextIOWrapper], Any], optional
+            | a callable object to be executed when file is opened, the output of which will then be returned
+
+        Returns
+        -------
+        Any
+            | output of `reader` or HTML code as string if no `reader` is supplied
+
+        Raises
+        ------
+        RuntimeError
+            | when trying to read a non-existent file
+        """
+
+        if reader is None:
+            def custom_reader(file: TextIOWrapper) -> str:
+                return file.read()
+            reader = custom_reader
+
+        return self.read(reader)
 
 
 class CSVFile(File):
-	delimiter: str
-	quotechar: str
+    delimiter: str
+    quotechar: str
 
-	def __init__(self, dir: Directory, filename: str, delimiter: str=",", quotechar: str='"') -> None:
-		""""
-		CSVFile initialiser.
+    def __init__(self, dir: Directory, filename: str, delimiter: str=",", quotechar: str='"') -> None:
+        """"
+        CSVFile initialiser.
 
-		Parameters
-		----------
-		dir : Directory
-			| a Directory type representing where the file will be stored
-		filename : str
-			| name of the file without '.csv'
-		delimiter : str, default=`","`
-			| delimiter to seperate the CSV values
-		quotechar : str, default=`'"'`
-			| character to use for quotes
-		"""
+        Parameters
+        ----------
+        dir : Directory
+            | a Directory type representing where the file will be stored
+        filename : str
+            | name of the file without '.csv'
+        delimiter : str, default=`","`
+            | delimiter to seperate the CSV values
+        quotechar : str, default=`'"'`
+            | character to use for quotes
+        """
 
-		super().__init__(dir, filename + ".csv")
+        super().__init__(dir, filename + ".csv")
 
-		self.delimiter = delimiter
-		self.quotechar = quotechar
-
-
-	def __str__(self) -> str:
-		return f"<CSVFile path={self._path}>"
+        self.delimiter = delimiter
+        self.quotechar = quotechar
 
 
-	def write_rows(
-		self,
-		rows: Iterable[Iterable[str]],
-		force: bool=False,
-		writer: Callable[[TextIOWrapper], None] | None=None
-	) -> None: # break arguments into seperate lines to avoid line being to long
-		"""
-		Writes given rows to CSV file.
-		Does not over-write unless `force` is set to `True`.
-		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
-
-		Parameters
-		----------
-		rows : Iterable[Iterable[str]]
-			| an iterable containing rows to be written, represented as iterables of strings
-		force : bool, default=`False`
-			| whether to force over-writing the file
-		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
-		"""
-
-		if writer is None:
-			def custom_writer(file: TextIOWrapper) -> None:
-				# typing ignored due to weird csv._writer type being inaccessible
-				csv_writer = csv.writer(file, # type: ignore
-					delimiter=self.delimiter,
-					quotechar=self.quotechar,
-					quoting=csv.QUOTE_MINIMAL
-				)
-				csv_writer.writerows(rows)
-			writer = custom_writer
-
-		self.write(writer, force=force)
+    def __str__(self) -> str:
+        return f"<CSVFile path={self._path}>"
 
 
-	def write_columns(
-		self,
-		columns: Iterable[Iterable[str]],
-		force: bool=False,
-		writer: Callable[[TextIOWrapper], None] | None=None
-	) -> None: # break arguments into seperate lines to avoid line being to long
-		"""
-		Writes given columns to CSV file.
-		If columns do not hold the same amount of values, will write smallest length column values per column.
-		Does not over-write unless `force` is set to `True`.
-		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
+    def write_rows(
+        self,
+        rows: Iterable[Iterable[str]],
+        force: bool=False,
+        writer: Callable[[TextIOWrapper], None] | None=None
+    ) -> None: # break arguments into seperate lines to avoid line being to long
+        """
+        Writes given rows to CSV file.
+        Does not over-write unless `force` is set to `True`.
+        If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
 
-		Parameters
-		----------
-		columns : Iterable[Iterable[str]]
-			| an iterable containing columns to be written, represented as iterables of strings
-		force : bool, default=`False`
-			| whether to force over-writing the file
-		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
-		"""
+        Parameters
+        ----------
+        rows : Iterable[Iterable[str]]
+            | an iterable containing rows to be written, represented as iterables of strings
+        force : bool, default=`False`
+            | whether to force over-writing the file
+        writer : Callable[[TextIOWrapper], None], optional
+            | a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+        """
 
-		rows: Iterable[Iterable[str]] = zip(*columns) # columns to rows iterable
-		self.write_rows(rows, force=force, writer=writer)
+        if writer is None:
+            def custom_writer(file: TextIOWrapper) -> None:
+                # typing ignored due to weird csv._writer type being inaccessible
+                csv_writer = csv.writer(file, # type: ignore
+                    delimiter=self.delimiter,
+                    quotechar=self.quotechar,
+                    quoting=csv.QUOTE_MINIMAL
+                )
+                csv_writer.writerows(rows)
+            writer = custom_writer
+
+        self.write(writer, force=force)
 
 
-	def write_dict(
-		self,
-		fieldnames, # type: ignore # do not undestand Collection[Never]
-		data: Iterable[dict[str, Any]],
-		force: bool=False,
-		writer: Callable[[TextIOWrapper], None] | None=None
-	) -> None: # break arguments into seperate lines to avoid line being to long
-		"""
-		Writes given iterable of dictionaries to CSV file.
-		Does not over-write unless `force` is set to `True`.
-		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
+    def write_columns(
+        self,
+        columns: Iterable[Iterable[str]],
+        force: bool=False,
+        writer: Callable[[TextIOWrapper], None] | None=None
+    ) -> None: # break arguments into seperate lines to avoid line being to long
+        """
+        Writes given columns to CSV file.
+        If columns do not hold the same amount of values, will write smallest length column values per column.
+        Does not over-write unless `force` is set to `True`.
+        If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
 
-		Parameters
-		----------
-		fieldnames: no actual type, but (Collection[Never])
-			| field names to be used when creating the file
-		data : Iterable[dict[str, Any]]
-			| an iterable containing dictionary to be written of fieldname and value pairs
-		force : bool, default=`False`
-			| whether to force over-writing the file
-		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
-		"""
+        Parameters
+        ----------
+        columns : Iterable[Iterable[str]]
+            | an iterable containing columns to be written, represented as iterables of strings
+        force : bool, default=`False`
+            | whether to force over-writing the file
+        writer : Callable[[TextIOWrapper], None], optional
+            | a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+        """
 
-		if writer is None:
-			def custom_writer(file: TextIOWrapper) -> None:
-				dict_writer: csv.DictWriter = csv.DictWriter(
-					file,
-					fieldnames=fieldnames,
-					delimiter=self.delimiter,
-					quotechar=self.quotechar,
-					quoting=csv.QUOTE_MINIMAL
-				)
-				dict_writer.writeheader()
-				dict_writer.writerows(data)
-			writer = custom_writer
+        rows: Iterable[Iterable[str]] = zip(*columns) # columns to rows iterable
+        self.write_rows(rows, force=force, writer=writer)
 
-		self.write(writer, force=force)
+
+    def write_dict(
+        self,
+        fieldnames, # type: ignore # do not undestand Collection[Never]
+        data: Iterable[dict[str, Any]],
+        force: bool=False,
+        writer: Callable[[TextIOWrapper], None] | None=None
+    ) -> None: # break arguments into seperate lines to avoid line being to long
+        """
+        Writes given iterable of dictionaries to CSV file.
+        Does not over-write unless `force` is set to `True`.
+        If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
+
+        Parameters
+        ----------
+        fieldnames: no actual type, but (Collection[Never])
+            | field names to be used when creating the file
+        data : Iterable[dict[str, Any]]
+            | an iterable containing dictionary to be written of fieldname and value pairs
+        force : bool, default=`False`
+            | whether to force over-writing the file
+        writer : Callable[[TextIOWrapper], None], optional
+            | a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+        """
+
+        if writer is None:
+            def custom_writer(file: TextIOWrapper) -> None:
+                dict_writer: csv.DictWriter = csv.DictWriter(
+                    file,
+                    fieldnames=fieldnames,
+                    delimiter=self.delimiter,
+                    quotechar=self.quotechar,
+                    quoting=csv.QUOTE_MINIMAL
+                )
+                dict_writer.writeheader()
+                dict_writer.writerows(data)
+            writer = custom_writer
+
+        self.write(writer, force=force)
 
 
 # mypy type checking requires use of --enable-incomplete-feature=NewGenericSyntax
 # custom types used later on to shorten typing annotations - REQUIRES PYTHON 3.12+!!!
 
 class JSONFile(File):
-	def __init__(self, dir: Directory, filename: str) -> None:
-		""""
-		JSONFile initialiser.
+    def __init__(self, dir: Directory, filename: str) -> None:
+        """"
+        JSONFile initialiser.
 
-		Parameters
-		----------
-		dir : Directory
-			| a Directory type representing where the file will be stored
-		filename : str
-			| name of the file without '.json'
-		"""
+        Parameters
+        ----------
+        dir : Directory
+            | a Directory type representing where the file will be stored
+        filename : str
+            | name of the file without '.json'
+        """
 
-		super().__init__(dir, filename + ".json")
-
-
-	def __str__(self) -> str:
-		return f"<JSONFile path={self._path}>"
+        super().__init__(dir, filename + ".json")
 
 
-	# this does not work, i am done, no type hints for json
-	# JSONVal = dict["JSONVal", "JSONVal"] | list["JSONVal"] | tuple["JSONVal"] | str | int | float | bool | None
-	def write_json(
-		self,
-		json_data, # type: ignore
-		force: bool=False,
-		writer: Callable[[TextIOWrapper], None] | None=None
-	) -> None:
-		"""
-		Writes given data to JSON file.
-		Does not over-write unless `force` is set to `True`.
-		If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
-
-		Parameters
-		----------
-		json_data : no actual type, but: (JSONVal = dict[str, JSONVal] | list[JSONVal] | tuple[JSONVal] | str | int | float | bool | None)
-			| an object made up of only the types accepted by json library
-		force : bool, default=`False`
-			| whether to force over-writing the file
-		writer : Callable[[TextIOWrapper], None], optional
-			| a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
-		"""
-
-		if writer is None:
-			def custom_writer(file: TextIOWrapper):
-				json.dump(json_data, file, indent=4)
-			writer = custom_writer
-
-		self.write(writer, force=force)
+    def __str__(self) -> str:
+        return f"<JSONFile path={self._path}>"
 
 
-	def read_json(self, reader: Callable[[TextIOWrapper], Any]) -> Any:
-		"""
-		Reads the contents of the HTML file.
-		If a custom `reader` is supplied, returns the result of that instead.
+    # this does not work, i am done, no type hints for json
+    # JSONVal = dict["JSONVal", "JSONVal"] | list["JSONVal"] | tuple["JSONVal"] | str | int | float | bool | None
+    def write_json(
+        self,
+        json_data, # type: ignore
+        force: bool=False,
+        writer: Callable[[TextIOWrapper], None] | None=None
+    ) -> None:
+        """
+        Writes given data to JSON file.
+        Does not over-write unless `force` is set to `True`.
+        If a custom `writer` is supplied, `rows` is ignored and only `writer` is executed.
 
-		Parameters
-		----------
-		reader : Callable[[TextIOWrapper], Any], optional
-			| a callable object to be executed when file is opened, the output of which will then be returned
+        Parameters
+        ----------
+        json_data : no actual type, but: (JSONVal = dict[str, JSONVal] | list[JSONVal] | tuple[JSONVal] | str | int | float | bool | None)
+            | an object made up of only the types accepted by json library
+        force : bool, default=`False`
+            | whether to force over-writing the file
+        writer : Callable[[TextIOWrapper], None], optional
+            | a callable object to be executed when file is opened, takes one parameter (TextIOWrapper) representing the file to be written
+        """
 
-		Returns
-		-------
-		Any
-			| output of `reader` or HTML code as string if no `reader` is supplied
+        if writer is None:
+            def custom_writer(file: TextIOWrapper):
+                json.dump(json_data, file, indent=4)
+            writer = custom_writer
 
-		Raises
-		------
-		RuntimeError
-			| when trying to read a non-existent file
-		"""
+        self.write(writer, force=force)
 
-		if reader is None:
-			def custom_reader(file: TextIOWrapper) -> str:
-				return json.load(file)
-			reader = custom_reader
 
-		return self.read(reader)
+    def read_json(self, reader: Callable[[TextIOWrapper], Any]) -> Any:
+        """
+        Reads the contents of the HTML file.
+        If a custom `reader` is supplied, returns the result of that instead.
+
+        Parameters
+        ----------
+        reader : Callable[[TextIOWrapper], Any], optional
+            | a callable object to be executed when file is opened, the output of which will then be returned
+
+        Returns
+        -------
+        Any
+            | output of `reader` or HTML code as string if no `reader` is supplied
+
+        Raises
+        ------
+        RuntimeError
+            | when trying to read a non-existent file
+        """
+
+        if reader is None:
+            def custom_reader(file: TextIOWrapper) -> str:
+                return json.load(file)
+            reader = custom_reader
+
+        return self.read(reader)
