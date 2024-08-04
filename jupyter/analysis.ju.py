@@ -17,14 +17,7 @@ To naredimo tako, da uvozimo željene knjižnice, ki nam bodo olajšale delo in 
 # %% [markdown]
 """
 #### Knjižnice
-Nenujne knjižnice (samo za lepši izgled):
-"""
-# %%
-# Prettier tables
-from IPython.display import HTML
-# %% [markdown]
-"""
-Knjjižnice za obdelavo podatkov:
+Za obdelavo podatkov in njihov prikaz potrebujemo naslednje knjižnice:
 """
 # %%
 import pandas as pd
@@ -92,11 +85,18 @@ crt_df
 # %% [markdown]
 """
 #### Lepši izpis
-Napišemo pomožno funkcijo, ki nam polepša izpis nekaterih tabel.
+Napišemo pomožno funkcijo, ki nam polepša izpis tabel.
+Podatke in naslove hočemo poravnati na levo, saj jih tako lažje prebermo.
+Prav tako se hočemo znebiti stolpca indeksov, saj v večini primerov za prikaz tabele ni potreben.
 """
 # %%
 def pretty_table(table_df):
-    return HTML(table_df.to_html(index=False))
+    styles = [
+        dict(selector="th", props=[("text-align", "left")]),
+        dict(selector="td", props=[("text-align", "left")])
+    ]
+    styled_df = table_df.style.set_table_styles(styles)
+    return styled_df.hide()
 # %% [markdown]
 """
 ## Deset najboljših
