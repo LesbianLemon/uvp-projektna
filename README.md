@@ -2,17 +2,16 @@
 
 ## Opis
 Cilj tega projekta je analiza podatkov o meteoritih in kraterjih iz spletne strani [Mednarodnega društva za meteorite in planetarno znanost](https://www.lpi.usra.edu/meteor/metbull.php).
-Vsebovani so programi, ki opravijo celoten postopek dela, vse od zajemanja podatkov in shranjevanja vse do analize v Jupyter Notebooku.
+Vsebovani so programi, ki opravijo celoten postopek dela, zajemanje podatkov, shranjevanje v uporabni obliki in analiza v Jupyter Notebooku.
 
-Projekt je razdeljen na dva dela, pridobivanje podatkov in njihovo analizo.
-Podrobnejši opis obeh delov:
-
+#### Pridobivanje podatkov
 Podatki so dobljeni s programi napisani v jeziku Python, z glavno datoteko `main.py`, ki ob zagonu opravi vse potrebne korake.
 Sprva z danimi parametri požene prvotno iskanje števila strani in jih začne večnitno nalagati v `data/html/`.
 Potem iz vsake strani posebej izloči željene podatke in jih zapiše v datoteki `data/output.csv` in `data/output.json`.
 S tem se pridobivanje podatkov zaključi in program se ustavi.
 Za natančnejša navodila uporabe se obrnite na [Navodila za uporabo](https://github.com/LesbianLemon/uvp-projektna/tree/develop?tab=readme-ov-file#navodila-za-uporabo).
 
+#### Analiza podatkov
 Analiza podatkov poteka datoteki `jupyter/analysis.ipynb` oziroma v `jupyter/analysis.ju.py`, če vam je ljubši JupyText.
 Hkrati se v mapi `jupyter/` nahajajo vse zunanje datoteke, ki jih uporabimo pri analizi podatkov razen `data/output.*` datotek.
 Program je kot večina Jupyter Notebookov razdeljen na postopno poganjanje in analizo z obrazloženimi idejami implementacije.
@@ -103,5 +102,5 @@ python main.py -c 8 -s * -f names -t contains -l 5000 -m ll
 Za več informacij kako delujejo te nastavitve si poglejte spletno stran [Mednarodnega društva za meteorite in planetarno znanost](https://www.lpi.usra.edu/meteor/metbull.php).
 
 Ko se program zaključi, se bosta v mapo `data/` shranili datoteki `data/output.json` in `data/output.csv`, ki vsebujeta vse zapise meteoritov, ki smo jih poiskali.
-Te se potem uporabi pri analizi v Jupyter Notebooku [`jupyter/analysis.ipynb`](https://github.com/LesbianLemon/uvp-projektna/blob/726db6d28f177848de125ee515211734beb431c1/jupyter/analysis.ipynb), ki ga lahko poženete s svojim izbranim programom za urejanje Jupyter Notebookov.
+Te se potem uporabi pri analizi v datoteki [`jupyter/analysis.ipynb`](https://github.com/LesbianLemon/uvp-projektna/blob/726db6d28f177848de125ee515211734beb431c1/jupyter/analysis.ipynb), ki jo lahko poženete s svojim izbranim programom za urejanje Jupyter Notebookov.
 Pred zagonom pa poskrbite za ustrezno nameščene knjižnice, ki jih najdete pod [Knjižnice](https://github.com/LesbianLemon/uvp-projektna/tree/develop?tab=readme-ov-file#knji%C5%BEnice).
