@@ -33,7 +33,7 @@ V primeru napake, poskusite zamenjati ukaz `python` s `python3`.
 Če vam ukaz še vedno ne deluje, najprej naložite [Python](https://www.python.org/).
 
 Željen izpis:
-```bash
+```
 python -V
 Python 3.12.4
 ```
@@ -104,4 +104,4 @@ Za več informacij kako delujejo te nastavitve si poglejte spletno stran [Mednar
 
 Ko se program zaključi, se bosta v mapo `data/` shranili datoteki `data/output.json` in `data/output.csv`, ki vsebujeta vse zapise meteoritov, ki smo jih poiskali.
 Te se potem uporabi pri analizi v Jupyter Notebooku [`jupyter/analysis.ipynb`](https://github.com/LesbianLemon/uvp-projektna/blob/726db6d28f177848de125ee515211734beb431c1/jupyter/analysis.ipynb), ki ga lahko poženete s svojim izbranim programom za urejanje Jupyter Notebookov.
-Pred zagonom pa poskrbite za ustrezno nameščene knjižnice, ki jih najdete pod [Knjižnice](https://github.com/LesbianLemon/uvp-projektna/tree/develop?tab=readme-ov-file#knjiznice).
+Pred zagonom pa poskrbite za ustrezno nameščene knjižnice, ki jih najdete pod [Knjižnice](https://github.com/LesbianLemon/uvp-projektna/tree/develop?tab=readme-ov-file#knji%C5%BEnice).
