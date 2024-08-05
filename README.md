@@ -96,7 +96,7 @@ options:
 
 Navaden zagon kot smo ga videli na začetku je enakovreden:
 ```console
-python main.py -c 8 -s * -f names -t contains -l 5000 -m ll
+python main.py -c 8 -s "*" -f names -t contains -l 5000 -m ll
 ```
 
 Za več informacij kako delujejo te nastavitve si poglejte spletno stran [Mednarodnega društva za meteorite in planetarno znanost](https://www.lpi.usra.edu/meteor/metbull.php).
