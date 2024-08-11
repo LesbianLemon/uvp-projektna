@@ -2,12 +2,12 @@
 
 ## Opis
 Cilj tega projekta je analiza podatkov o meteoritih in kraterjih iz spletne strani [Mednarodnega društva za meteorite in planetarno znanost](https://www.lpi.usra.edu/meteor/metbull.php).
-Vsebovani so programi, ki opravijo celoten postopek dela, zajemanje podatkov, shranjevanje v uporabni obliki in analiza v Jupyter Notebooku.
+Vsebovani so programi, ki opravijo celoten postopek dela. Poskrbijo za zajemanje podatkov, shranjevanje v uporabni obliki in analizo v Jupyter Notebooku.
 
 #### Pridobivanje podatkov
 Podatki so dobljeni s programi napisani v jeziku Python, z glavno datoteko `main.py`, ki ob zagonu opravi vse potrebne korake.
-Sprva z danimi parametri požene prvotno iskanje števila strani in jih začne večnitno nalagati v `data/html/`.
-Potem iz vsake strani posebej izloči željene podatke in jih zapiše v datoteki `data/output.csv` in `data/output.json`.
+Sprva z danimi parametri požene prvotno iskanje števila strani in jih začne večnitno nalagati ter shranjevati v `data/html/`.
+Potem iz vsake strani posebej izloči željene podatke in jih zapiše v datoteki `data/output.csv` ter `data/output.json`.
 S tem se pridobivanje podatkov zaključi in program se ustavi.
 Za natančnejša navodila uporabe se obrnite na [Navodila za uporabo](https://github.com/LesbianLemon/uvp-projektna/tree/develop?tab=readme-ov-file#navodila-za-uporabo).
 
