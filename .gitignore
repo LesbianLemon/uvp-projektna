@@ -3,6 +3,10 @@ data/html/*
 # keep 0kb file, since git does not track empty directories
 !data/html/.gitkeep
 
+# File finder fd and ripgrep ignore files
+.fdignore
+.rgignore
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
